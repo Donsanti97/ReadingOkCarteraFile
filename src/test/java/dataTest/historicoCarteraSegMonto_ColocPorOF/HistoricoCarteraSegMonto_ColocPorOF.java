@@ -1,31 +1,12 @@
 package dataTest.historicoCarteraSegMonto_ColocPorOF;
 
-import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
-import org.apache.poi.openxml4j.exceptions.OpenXML4JException;
-import org.apache.poi.openxml4j.opc.OPCPackage;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.util.IOUtils;
-import org.apache.poi.xssf.eventusermodel.XSSFReader;
-import org.apache.poi.xssf.eventusermodel.XSSFSheetXMLHandler;
-import org.apache.poi.xssf.model.SharedStringsTable;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.testng.annotations.Test;
-import org.xml.sax.ContentHandler;
-import org.xml.sax.InputSource;
-import org.xml.sax.SAXException;
-import org.xml.sax.XMLReader;
-import org.xml.sax.helpers.XMLReaderFactory;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.List;
 
@@ -45,12 +26,8 @@ public class HistoricoCarteraSegMonto_ColocPorOF {
 
         JButton button = new JButton("Seleccionar");
 
-        ActionListener actionListener = new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                frame.dispose(); // Cerrar la ventana después de seleccionar una opción
-            }
-        };
+        ActionListener actionListener = e -> frame.dispose();
+
         button.addActionListener(actionListener);
 
         JPanel panel = new JPanel();
@@ -99,9 +76,7 @@ public class HistoricoCarteraSegMonto_ColocPorOF {
             waitSeconds(10);
 
             deleteTempFile(tempFile);
-        } catch (HeadlessException e) {
-            throw new RuntimeException(e);
-        } catch (IOException e) {
+        } catch (HeadlessException | IOException e) {
             throw new RuntimeException(e);
         }
     }
@@ -114,8 +89,7 @@ public class HistoricoCarteraSegMonto_ColocPorOF {
         IOUtils.setByteArrayMaxOverride(300000000);
 
         List<String> sheetNames = obtenerNombresDeHojas(okCartera);
-        List<String> headers = new ArrayList<>();
-        List<Map<String, String>> datosFiltrados = new ArrayList<>();
+        List<Map<String, String>> datosFiltrados;
         List<String> camposDeseados = Arrays.asList("codigo_sucursal", "capital");
 
         for (String sheetName :
@@ -134,7 +108,7 @@ public class HistoricoCarteraSegMonto_ColocPorOF {
 
             // Filtrar los datos por el campo y el rango especificados
             datosFiltrados = obtenerValoresDeEncabezados(okCartera, sheetName, campoFiltrar, valorInicio, valorFin);
-            System.out.println("DATOSFILTRADOS: " + datosFiltrados.size() + " : " + datosFiltrados);
+            System.out.println("DATOS_FILTRADOS: " + datosFiltrados.size() + " : " + datosFiltrados);
 
             for (Map<String, String> rowData : datosFiltrados) {
                 System.out.println(rowData);
@@ -165,7 +139,7 @@ public class HistoricoCarteraSegMonto_ColocPorOF {
 
             List<String> sheetNames = obtenerNombresDeHojas(okCarteraFile);
 
-            List<String> headers = null;
+            List<String> headers;
             List<Map<String, String>> datosFiltrados = null;
             List<String> camposDeseados = Arrays.asList("codigo_sucursal", "capital");
             for (String sheetName : sheetNames) {
@@ -191,7 +165,6 @@ public class HistoricoCarteraSegMonto_ColocPorOF {
 
                 // Imprimir datos filtrados
                 System.out.println("DATOS FILTRADOS");
-                //System.out.println("Datos filtrados por " + campoFiltrar + " en el rango [" + valorInicio + ", " + valorFin + "]");
                 for (Map<String, String> rowData : datosFiltrados) {
                     for (String campoDeseado : camposDeseados) {
                         String valorCampo = rowData.get(campoDeseado);
@@ -205,12 +178,12 @@ public class HistoricoCarteraSegMonto_ColocPorOF {
 
 
             }
-            System.out.println("-----------CREACION TEMPORAL-----------");
+            System.out.println("-----------CREACIÓN TEMPORAL-----------");
 
             // Crear una nueva hoja Excel con los datos filtrados
             crearNuevaHojaExcel(tempFile, camposDeseados, datosFiltrados);
 
-            /*System.out.println("Analisis archivo temporal----------------------");
+            /*System.out.println("Análisis archivo temporal----------------------");
 
             sheetNames = obtenerNombresDeHojas(tempFile);
 
@@ -252,15 +225,15 @@ public class HistoricoCarteraSegMonto_ColocPorOF {
                             *//*------------------------------------------------------------*//*
                             if (entryOkCartera.getKey().contains(entry.getKey())) {
 
-                                System.out.println("CODIGO ENCONTRADO");
+                                System.out.println("CÓDIGO ENCONTRADO");
 
 
                                 if (!entryOkCartera.getValue().equals(entry.getValue())) {
 
-                                    System.out.println("LOS VALORES ENCONTRADOS SON DISTINTOS-> " + entryOkCartera.getValue() + ": " + entry.getValue() + " CON RESPECTO AL CODIGO: " + entry.getKey());
+                                    System.out.println("LOS VALORES ENCONTRADOS SON DISTINTOS-> " + entryOkCartera.getValue() + ": " + entry.getValue() + " CON RESPECTO AL CÓDIGO: " + entry.getKey());
                                 } else {
 
-                                    System.out.println("LOS VALORES ENCONTRADOS SON IGUALES-> " + entryOkCartera.getValue() + ": " + entry.getValue() + " CON RESPECTO AL CODIGO: " + entry.getKey());
+                                    System.out.println("LOS VALORES ENCONTRADOS SON IGUALES-> " + entryOkCartera.getValue() + ": " + entry.getValue() + " CON RESPECTO AL CÓDIGO: " + entry.getKey());
 
                                 }
                             } else {
