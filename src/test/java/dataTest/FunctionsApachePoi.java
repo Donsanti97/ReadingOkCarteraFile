@@ -1,15 +1,10 @@
 package dataTest;
 
 import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
-import org.apache.poi.openxml4j.exceptions.OpenXML4JException;
 import org.apache.poi.openxml4j.opc.OPCPackage;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.AreaReference;
 import org.apache.poi.ss.util.CellReference;
-import org.apache.poi.xssf.eventusermodel.XSSFReader;
-import org.apache.poi.xssf.model.SharedStringsTable;
-import org.apache.poi.xssf.model.Styles;
-import org.apache.poi.xssf.model.StylesTable;
 import org.apache.poi.xssf.usermodel.*;
 import org.apache.poi.util.*;
 
@@ -17,19 +12,14 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.xmlbeans.XmlObject;
 import org.apache.xmlbeans.XmlOptions;
-import org.xml.sax.*;
-import org.xml.sax.helpers.DefaultHandler;
-import org.xml.sax.helpers.XMLReaderFactory;
 
 import javax.swing.*;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamConstants;
-import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.*;
-import java.nio.charset.StandardCharsets;
 import java.text.DecimalFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -52,11 +42,8 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 
@@ -66,7 +53,7 @@ public class FunctionsApachePoi {
     private static final Logger logger = LogManager.getLogger(FunctionsApachePoi.class);
 
 
-    //Metodo para obtener los valores de encabezados generales
+    //Método para obtener los valores de encabezados generales
     public static List<Map<String, String>> obtenerValoresDeEncabezados(String excelFilePath, String sheetName) {
         List<Map<String, String>> data = new ArrayList<>();
         List<String> headers = obtenerEncabezados(excelFilePath, sheetName);
@@ -83,12 +70,7 @@ public class FunctionsApachePoi {
                     String header = headers.get(cellIndex);
                     String value = "";
                     if (cell != null) {
-                        if (cell.getCellType() == CellType.STRING) {
-                            value = cell.getStringCellValue();
-                            break;
-                        } else if (cell.getCellType() == CellType.NUMERIC) {
-                            value = String.valueOf(cell.getNumericCellValue());
-                        }
+                        value = obtenerValorVisibleCelda(cell);
                     }
                     rowData.put(header, value);
                 }
@@ -98,44 +80,6 @@ public class FunctionsApachePoi {
             fis.close();
         } catch (IOException e) {
             logger.error("Error al procesar el archivo Excel", e);
-            ;
-        }
-        return data;
-    }
-
-    public static List<Map<String, String>> obtenerValoresDeEncabezados(List<String> headers, String excelFilePath, String sheetName) {
-        List<Map<String, String>> data = new ArrayList<>();
-        /*List<String>*/
-        headers = obtenerEncabezados(excelFilePath, sheetName);
-        try {
-            FileInputStream fis = new FileInputStream(excelFilePath);
-            Workbook workbook = new XSSFWorkbook(fis);
-            Sheet sheet = workbook.getSheet(sheetName);
-            int numberOfRows = sheet.getPhysicalNumberOfRows();
-            for (int rowIndex = 1; rowIndex < numberOfRows; rowIndex++) {
-                Row row = sheet.getRow(rowIndex);
-                Map<String, String> rowData = new HashMap<>();
-                for (int cellIndex = 0; cellIndex < headers.size(); cellIndex++) {
-                    Cell cell = row.getCell(cellIndex);
-                    String header = headers.get(cellIndex);
-                    String value = "";
-                    if (cell != null) {
-                        if (cell.getCellType() == CellType.STRING) {
-                            value = cell.getStringCellValue();
-                            break;
-                        } else if (cell.getCellType() == CellType.NUMERIC) {
-                            value = String.valueOf(cell.getNumericCellValue());
-                        }
-                    }
-                    rowData.put(header, value);
-                }
-                data.add(rowData);
-            }
-            workbook.close();
-            fis.close();
-        } catch (IOException e) {
-            logger.error("Error al procesar el archivo Excel", e);
-            ;
         }
         return data;
     }
@@ -173,9 +117,8 @@ public class FunctionsApachePoi {
     }
 
     //@Test
-    //Metodo para creación de tablas dinámicas
-    public static void tablasDinamicasApachePoi(String filePath, String codSucursal, String colValores, String funcion) throws IOException {
-        //String filePath = System.getProperty("user.dir") + "\\documents\\procesedDocuments\\TemporalFile.xlsx";//OKCARTERA.20230426
+    //Método para creación de tablas dinámicas
+    public static void tablasDinamicasApachePoi(String filePath, String codSucursal, String colValores, String funcion) {
 
         try {
             IOUtils.setByteArrayMaxOverride(300000000);
@@ -187,9 +130,6 @@ public class FunctionsApachePoi {
 
             //Definir hoja
             Sheet sheet = workbook.getSheetAt(0);
-
-            //String codSucursal = "producto";//codigo_sucursal
-            //String colValores = "cantidad";//capital
 
             List<String> headers = obtenerEncabezados(filePath, sheet.getSheetName());
             int index = 0;
@@ -220,36 +160,36 @@ public class FunctionsApachePoi {
 
             CellReference pivotCellReference = new CellReference(2, bottomRight.getCol() + 3);
 
-            //Crea la tabla dinamica en la hoja de trabajo
+            //Crea la tabla dinámica en la hoja de trabajo
             XSSFPivotTable pivotTable = ((XSSFSheet) sheet).createPivotTable(source, pivotCellReference);//DW12
             pivotTable.addRowLabel(index);//Agregar etiqueta de fila para el campo Modalidad (12)
 
 
             switch (funcion.toLowerCase()) {
                 case "suma":
-                    pivotTable.addColumnLabel(DataConsolidateFunction.SUM, index2, "Suma de " + colValores);//Agrega la columna de la que se va a hacer la suma y la etiqueta de la funcion suma(15)
+                    pivotTable.addColumnLabel(DataConsolidateFunction.SUM, index2, "Suma de " + colValores);//Agrega la columna de la que se va a hacer la suma y la etiqueta de la función suma(15)
                     break;
                 case "recuento":
-                    pivotTable.addColumnLabel(DataConsolidateFunction.COUNT, index2, "Recuento de " + colValores);//Agrega la columna de la que se va a hacer la suma y la etiqueta de la funcion suma(15)
+                    pivotTable.addColumnLabel(DataConsolidateFunction.COUNT, index2, "Recuento de " + colValores);//Agrega la columna de la que se va a hacer la suma y la etiqueta de la función suma(15)
                     break;
                 case "promedio":
-                    pivotTable.addColumnLabel(DataConsolidateFunction.AVERAGE, index2, "Promedio de " + colValores);//Agrega la columna de la que se va a hacer la suma y la etiqueta de la funcion suma(15)
+                    pivotTable.addColumnLabel(DataConsolidateFunction.AVERAGE, index2, "Promedio de " + colValores);//Agrega la columna de la que se va a hacer la suma y la etiqueta de la función suma(15)
 
             }
 
 
             //Guardar excel
-            FileOutputStream fileout = new FileOutputStream(filePath);
-            workbook.write(fileout);
+            FileOutputStream fileOut = new FileOutputStream(filePath);
+            workbook.write(fileOut);
             fileInputStream.close();
-            fileout.close();
+            fileOut.close();
 
 
             //Se cierra excel
             workbook.close();
 
 
-            System.out.println("Tabla dinamica creada");
+            System.out.println("Tabla dinámica creada");
 
         } catch (IOException e) {
             logger.error("Error al procesar el archivo Excel", e);
@@ -325,7 +265,7 @@ public class FunctionsApachePoi {
 
             // Verificar si ya existe la entrada en el Map
             if (resultMap.containsKey(tipoProducto)) {
-                // Si existe, agregar el costo al valor existente
+                // Sí existe, agregar el costo al valor existente
                 int sumaCosto = resultMap.get(tipoProducto) + costo;
                 resultMap.put(tipoProducto, sumaCosto);
             } else {
@@ -340,218 +280,9 @@ public class FunctionsApachePoi {
 
     /*-----------------------------------------------------------------------------------------------------------------------------------------*/
     private static final int BATCH_SIZE = 1000; // Tamaño del lote para procesar
-
-    /*public static List<String> obtenerNombresDeHojas(String excelFilePath) {
-        List<String> sheetNames = new ArrayList<>();
-
-        try (FileInputStream fis = new FileInputStream(excelFilePath)) {
-            OPCPackage opcPackage = OPCPackage.open(fis);
-            XSSFReader xssfReader = new XSSFReader(opcPackage);
-            SharedStringsTable sst = (SharedStringsTable) xssfReader.getSharedStringsTable();
-            StylesTable stylesTable = xssfReader.getStylesTable();
-            XMLReader parser = XMLReaderFactory.createXMLReader();
-
-            XSSFReader.SheetIterator sheets = (XSSFReader.SheetIterator) xssfReader.getSheetsData();
-            while (sheets.hasNext()) {
-                try (InputStream sheetStream = sheets.next()) {
-                    SheetContentHandler sheetHandler = new SheetContentHandler(sst, stylesTable, BATCH_SIZE);
-                    parser.setContentHandler(sheetHandler);
-                    parser.parse(new InputSource(sheetStream));
-                    sheetNames.add(sheets.getSheetName());
-                }
-            }
-
-            opcPackage.close();
-        } catch (IOException | SAXException | InvalidFormatException e) {
-            e.printStackTrace();
-        } catch (OpenXML4JException e) {
-            throw new RuntimeException(e);
-        }
-
-        return sheetNames;
-    }*/
-
-    private static class SheetContentHandler extends DefaultHandler {
-
-        /**
-         * sst: Manejo de cadenas compartidas en un Excel
-         * StylesTable: Manejo de estilos en Excel
-         * proccessData: Lista contenedor de datos procesados
-         * CurrentRowData: Lista que contiene datos de una fila actual en procesamiento
-         * batchSize: Tamaño del lote de filas para procesar
-         * campoFiltrar, valorInicio, valorFIn: Parametros para filtrado de filas
-         * isText: Indicador de contenido para ver si es o no texto
-         * isCellEmpty: Indicador de celda en proceso, vacía/no vacía
-         * textBuffer: Amacena texto actual
-         * currentColumnIndex: Almacenamiento del indíce de la columna actual
-         * currentRowIndez: Índice de la fila acrtual
-         *
-         * MÉTODOS SAX
-         * startElement: Usado para detectar nuevas celdas '<c>'
-         *characters: cuando encuentra caracteres dentro de un elemento XML, este es llamado.
-         * Sirve para almacenar el texto dentro de la celda
-         * endElement: Se llama al finalizar elemento XML. Sirve para manejar el valor de la celda '<V>' y el final de la fila '<row>'
-         *
-         * METODOS
-         * proccessRowData: Procesamiento de datos de la fila actual. Si es la primera fila (encabezados), los agrega a la lista 'headers'.
-         * Si no es la primera fila, crea un 'Map' para la fila actual y lo agrega a la lista proccessData. También se filtran las filas según
-         * los parámetros de filtrado
-         *getColumIndex: Convierte la referencia de celda en una columna de índice (A->0, B->1)
-         *
-         * **/
-        private final SharedStringsTable sst;
-        private final StylesTable stylesTable;
-        private final List<Map<String, String>> processedData;
-        private final List<String> currentRowData;
-        private final int batchSize;
-        private final String campoFiltrar;
-        private final String valorInicio;
-        private final String valorFin;
-
-        private boolean isText;
-        private boolean isCellEmpty;
-        private StringBuilder textBuffer;
-
-        private int currentColumnIndex;
-        private int currentRowIndex;
-
-        public SheetContentHandler(SharedStringsTable sst, StylesTable stylesTable, int batchSize) {
-            this.sst = sst;
-            this.stylesTable = stylesTable;
-            this.batchSize = batchSize;
-            this.processedData = new ArrayList<>();
-            this.currentRowData = new ArrayList<>();
-            this.campoFiltrar = null;
-            this.valorInicio = null;
-            this.valorFin = null;
-        }
-        public SheetContentHandler(SharedStringsTable sst, StylesTable stylesTable, int batchSize, String campoFiltrar, String valorInicio, String valorFin) {
-            this.sst = sst;
-            this.stylesTable = stylesTable;
-            this.batchSize = batchSize;
-            this.processedData = new ArrayList<>();
-            this.currentRowData = new ArrayList<>();
-            this.campoFiltrar = campoFiltrar;
-            this.valorInicio = valorInicio;
-            this.valorFin = valorFin;
-        }
-
-        @Override
-        public void startElement(String uri, String localName, String name, Attributes attributes) throws SAXException {
-            switch (name) {
-                case "c":
-                    // Nueva celda encontrada
-                    String cellType = attributes.getValue("t");
-                    isText = cellType != null && cellType.equals("s");
-                    isCellEmpty = true;
-                    textBuffer = new StringBuilder();
-                    currentColumnIndex = getColumnIndex(attributes.getValue("r"));
-                    break;
-            }
-        }
-
-        @Override
-        public void characters(char[] ch, int start, int length) throws SAXException {
-            if (isText) {
-                textBuffer.append(ch, start, length);
-            }
-        }
-
-        @Override
-        public void endElement(String uri, String localName, String name) throws SAXException {
-            switch (name) {
-                case "v":
-                    // Valor de celda
-                    currentRowData.add(textBuffer.toString());
-                    isCellEmpty = false;
-                    break;
-                case "c":
-                    // Fin de celda
-                    if (isCellEmpty) {
-                        currentRowData.add("");
-                    }
-                    break;
-                case "row":
-                    // Fin de fila
-                    if (!currentRowData.isEmpty()) {
-                        processRowData(currentRowData);
-                        /*for (int i = 0; i < currentRowData.size(); i++) {
-                            System.out.println("PARTE DEL ERROR. VALOR DE currentRowData: " + currentRowData.get(i).toString());
-                        }*/
-
-                        currentRowData.clear();
-                    }
-                    currentRowIndex++;
-                    break;
-            }
-        }
-
-        private void processRowData(List<String> rowData) {
-            if (currentRowIndex % batchSize == 0) {
-                // Realizar alguna acción después de procesar un lote
-                // Puedes adaptar esto según tus necesidades
-                System.out.println("Procesando lote de filas: " + currentRowIndex);
-            }
-
-            // Filtrar y procesar según tus necesidades
-            Map<String, String> fila = new HashMap<>();
-            /*modified*///fila.put("linea", rowData.get(0)); // Ajusta las columnas según tu archivo
-            /*modified*///fila.put("NOMBRE", rowData.get(1));
-            // ... Añade más columnas según sea necesario
-            List<String> headers = new ArrayList<>();
-            if (currentRowIndex == 0) {
-                for (String header : rowData){
-                    headers.add(header);
-                    System.out.println("HEADER INTERNO: " + header + " SIZE: " + rowData.size());
-                    System.out.println("ROWDATA: " + rowData);
-                }
-            }else {
-                //int minlengh = Math.min(headers.size(), rowData.size());
-                for (int i = 0; i < Math.min(headers.size(), rowData.size()); i++) {
-                    fila.put(headers.get(i), rowData.get(i));
-                }
-            }
-
-
-            //if (currentColumnIndex < rowData.size()) {
-            System.out.println("CURRENCOLUMNINDEX: " + currentColumnIndex);
-                System.out.println("Longitud de rowData: " + rowData.size());
-                String valorCelda = ""/*rowData.get(currentColumnIndex)*/;
-                // Ejemplo de filtrado por campo y valores de inicio y fin
-                if (campoFiltrar != null && valorInicio != null && valorFin != null) {
-                    int columnIndex = getColumnIndex(campoFiltrar);
-                    /*String*/ valorCelda = rowData.get(columnIndex);
-                    if (valorCelda.compareTo(valorInicio) >= 0 && valorCelda.compareTo(valorFin) <= 0) {
-                        processedData.add(fila);
-                    }
-                } else {
-                    // Si no se especifica un campo de filtro, simplemente añadir la fila
-                    processedData.add(fila);
-                }
-            /*} else {
-                // Manejar el caso de índice fuera de los límites
-                System.out.println("FUERA DE LOS LIMITES");
-            }*/
-
-        }
-
-        private int getColumnIndex(String cellReference) {
-            // Extraer el índice de columna desde la referencia de celda
-            String columnLetters = cellReference.replaceAll("[0-9]", "");
-            int columnIndex = 0;
-            for (int i = 0; i < columnLetters.length(); i++) {
-                columnIndex = columnIndex * 26 + (columnLetters.charAt(i) - 'A' + 1);
-            }
-            return columnIndex - 1; // Restar 1 para que las columnas comiencen desde 0
-        }
-
-        public List<Map<String, String>> getProcessedData() {
-            return processedData;
-        }
-    }
     /*-----------------------------------------------------------------------------------------------------------------------------------------*/
 
-    //Metodo para obtener los nombres de las hojas existentes en el excel
+    //Método para obtener los nombres de las hojas existentes en el excel
     public static List<String> obtenerNombresDeHojas(String excelFilePath) {
         List<String> sheetNames = new ArrayList<>();
         try {
@@ -621,11 +352,10 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
 
     try {
         FileInputStream fis = new FileInputStream(excelFilePath);
-        Workbook workbook = new XSSFWorkbook(fis);
-        Sheet sheet = workbook.getSheet(sheetName);
+        XSSFWorkbook workbook = new XSSFWorkbook(fis);
 
         // Obtener el contenido del archivo XLSX como un XmlObject
-        XmlObject xmlObject = XmlObject.Factory.parse(((XSSFWorkbook) workbook).getPackagePart().getInputStream(), new XmlOptions());
+        XmlObject xmlObject = XmlObject.Factory.parse(workbook.getPackagePart().getInputStream(), new XmlOptions());
 
         // Crear un XMLStreamReader para leer el contenido XML
         XMLInputFactory factory = XMLInputFactory.newInstance();
@@ -634,7 +364,13 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
         // Iterar a través del contenido XML
         while (reader.hasNext()) {
             int event = reader.next();
-            switch (event) {
+            if (event == XMLStreamConstants.START_ELEMENT){
+                if ("sheetData".equals(reader.getLocalName())) {
+                    headers = readHeaderRow(reader);
+                    break;
+                }
+            }
+            /*switch (event) {
                 case XMLStreamConstants.START_ELEMENT:
                     // Verificar si es un elemento de hoja y obtener el nombre de la hoja
                     if ("sheetData".equals(reader.getLocalName())) {
@@ -642,7 +378,7 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
                         break;
                     }
                     break;
-            }
+            }*/
         }
 
         // Cerrar recursos
@@ -694,7 +430,7 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
         return value;
     }
     /*---------------------------------------------------------------------------------------------------------------------------------------*/
-    //Metodo para obtener los encabezados en las hojas
+    //Método para obtener los encabezados en las hojas
     /*public static List<String> obtenerEncabezados(String excelFilePath, String sheetName) {
         List<String> headers = new ArrayList<>();
         try {
@@ -720,7 +456,7 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
         return headers;
     }*/
 
-    //Metodo para obtener los valores de encabezados específicos
+    //Método para obtener los valores de encabezados específicos
     public static List<Map<String, String>> obtenerValoresDeEncabezados(String excelFilePath, String sheetName, List<String> camposDeseados) {
         List<Map<String, String>> data = new ArrayList<>();
         List<String> headers = obtenerEncabezados(excelFilePath, sheetName);
@@ -917,11 +653,6 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
                         String value = "";
 
                         if (dataCell != null) {
-                            /*if (dataCell.getCellType() == CellType.STRING) {
-                                value = dataCell.getStringCellValue();
-                            } else if (dataCell.getCellType() == CellType.NUMERIC) {
-                                value = String.valueOf(dataCell.getNumericCellValue());
-                            }*/
                             value = obtenerValorVisibleCelda(dataCell);
                         }
 
@@ -961,7 +692,7 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
     }
     /*--------------------------------------------------------------------------------------------------*/
 
-    //Metodo para obtener valores de los encabezados en un rago especifico de valores
+    //Método para obtener valores de los encabezados en un rango especifico de valores
     /*public static List<Map<String, String>> obtenerValoresDeEncabezados(String excelFilePath, String sheetName, String campoFiltrar, String valorInicio, String valorFin) {
         List<Map<String, String>> datosFiltrados = new ArrayList<>();
         try {
@@ -1115,7 +846,7 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
     //Método para obtener valores de los encabezados de un rango específico cada uno, el primero rango String y el segundo rango double
     public static List<Map<String, String>> obtenerValoresDeEncabezados(String excelFilePath, String sheetName, String campoFiltrar1, String valorInicio1, String valorFin1, String campoFiltrar2, int valorInicio2, int valorFin2) {
         List<Map<String, String>> datosFiltrados = new ArrayList<>();
-        List<String> headers = null;
+        List<String> headers;
         try {
             IOUtils.setByteArrayMaxOverride(300000000);
 
@@ -1167,7 +898,7 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
 
     public static List<Map<String, String>> obtenerValoresDeEncabezados(String excelFilePath, String sheetName, String campoFiltrar1, int valorInicio1, int valorFin1, String campoFiltrar2, int valorInicio2, int valorFin2) {
         List<Map<String, String>> datosFiltrados = new ArrayList<>();
-        List<String> headers = null;
+        List<String> headers;
         try {
             IOUtils.setByteArrayMaxOverride(300000000);
 
@@ -1364,7 +1095,7 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
         return datosFiltrados;
     }
 
-    //Metodo que crea una nueva hoja excel con información específica ya tratada en un archivo excel nuevo
+    //Método que crea una nueva hoja excel con información específica ya tratada en un archivo excel nuevo
     public static void crearNuevaHojaExcel(String filePath, List<String> headers, List<Map<String, String>> data) {
         Workbook workbook = new XSSFWorkbook();
         Sheet sheet = workbook.createSheet("NuevaHoja");
@@ -1580,7 +1311,7 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
         }
 
         Iterator<Row> rowIterator = sheet.iterator();
-        // Omitir la primera fila ya que contiene los encabezados
+        // Omitir la primera fila, ya que contiene los encabezados
         if (rowIterator.hasNext()) {
             rowIterator.next();
         }
@@ -1652,7 +1383,7 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
         return valor;
     }
 
-    /*--------------------OTROS METODOS PARA LEER Y HACER LA SUMATORIA POR VALOR---------------------------------------------------------------*/
+    /*--------------------OTROS MÉTODOS PARA LEER Y HACER LA SUMATORIA POR VALOR---------------------------------------------------------------*/
     public static List<Map<String, String>> leerExcel(String filePath) throws IOException {
         List<Map<String, String>> data = new ArrayList<>();
 
@@ -1905,7 +1636,7 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
 
 
     /*------------------------------------------------------------------------------------------------------------------------------*/
-    /*LECTURA DEL ARCHIVO MAESTRO PARA ANALISIS*/
+    /*LECTURA DEL ARCHIVO MAESTRO PARA ANÁLISIS*/
 
     public static List<String> getHeaders(String excelFilePath, String sheetName) {
         List<String> headers = new ArrayList<>();
@@ -1927,14 +1658,12 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
 
 
     public static List<Map<String, String>> obtenerValoresEncabezados2(String file1, String file2, String hoja, String fechaCorte) {
-        List<Map<String, String>> valoresEncabezados2 = new ArrayList<>();
+        List<Map<String, String>> valoresEncabezados2;
         List<Map<String, String>> mapList = new ArrayList<>();
 
         try {
 
             if (file1 != null && file2 != null) {
-                /*System.out.println("Ruta del archivo Excel seleccionado: " + file1);
-                System.out.println("Ruta del archivo Excel seleccionado: " + file2);*/
                 System.out.println("Archivos válidos, el análisis comenzará en breve...");
             } else {
                 System.out.println("No se seleccionó ningún archivo.");
@@ -1954,18 +1683,16 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
             
             int indexF2 = 0;
             List<String> nameSheets1 = getWorkSheet(file1, 0);
-            Sheet sheet2 = workbook2.getSheetAt(0);
+            Sheet sheet2;
             List<String> nameSheets2 = getWorkSheet(file2, 0);
 
             for (String s2 : nameSheets2) {
-                String sheetname = s2.replaceAll("\\s", "");
-                boolean sheetFound = false;
+                String sheetName = s2.replaceAll("\\s", "");
 
                 for (int i = 0; i < workbook2.getNumberOfSheets(); i++) {
-                    if (nameSheets1.get(0).equals(sheetname)) {
+                    if (nameSheets1.get(0).equals(sheetName)) {
                         indexF2 = i;
                         System.out.println("La hoja de trabajo se encontró en Excel B en el índice: " + indexF2);
-                        sheetFound = true;
                         break;
                     }
                 }
@@ -1977,10 +1704,7 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
             sheet2 = workbook2.getSheetAt(indexF2);
             nameSheets2 = getWorkSheet(file2, indexF2);
 
-            List<String> encabezados1 = null;
             List<String> encabezados2 = null;
-
-            List<Map<String, String>> valoresEncabezados1 = null;
 
             System.out.println("------------------------------------------------------------------------------------------");
 
@@ -2011,10 +1735,10 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
             waitSeconds(5);
             
             System.out.println("-------------------------------------------------------------------------------------");
-            System.out.println("ANALISIS DE DATOS MASTERFILE");
+            System.out.println("ANÁLISIS DE DATOS MASTER_FILE");
 
             JOptionPane.showMessageDialog(null, "Tomando en cuenta la información mostrada anteriormente en consola " +
-                    "\n Seleccione por favor el encabezado \"Codigo\" que será usado para el análisis de los valores");
+                    "\n Seleccione por favor el encabezado \"Código\" que será usado para el análisis de los valores");
             assert encabezados2 != null;
             String seleccion = mostrarMenu(encabezados2);
             JOptionPane.showMessageDialog(null, "Seleccione la fecha de corte o columna correspondiente para análisis de los valores " +
@@ -2026,10 +1750,10 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
                     hoja.toLowerCase();
                     if (sheetName2.equals(hoja)) {
                         System.out.println("ENTRA A " + hoja);
-                        System.out.println("SHEETNAME2: " + sheetName2);
+                        System.out.println("SHEET_NAME2: " + sheetName2);
                         if (!fechaCorte.equals(seleccion2)){
                             errorMessage("Por favor verifique que los encabezados correspondientes a las fechas" +
-                                    "\n tengan un formato tipo FECHA identica a " + fechaCorte);
+                                    "\n tengan un formato tipo FECHA idéntica a " + fechaCorte);
 
                             errorMessage( "No es posible completar el análisis de la hoja [" + hoja +
                                     "]\n el formato de fecha no es el correcto");
@@ -2046,7 +1770,7 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
                         
                         runtime();
                         waitSeconds(2);
-                        System.out.println("AQUI TERMINA TOOODO");
+                        System.out.println("AQUÍ TERMINA TODO");
                     }else {
                         System.err.println("La hoja [" + hoja + "] no fue encontrada");
                     }
@@ -2060,7 +1784,7 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
 
             System.out.println("---------------------------------------------------------------------------------------");
 
-            System.out.println("Analisis completado...");
+            System.out.println("Análisis completado...");
             workbook.close();
             workbook2.close();
             fis.close();
@@ -2074,8 +1798,6 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
             System.out.println("Archivos analizados correctamente sin errores");
 
 
-        } catch (FileNotFoundException e) {
-            throw new RuntimeException(e);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -2104,12 +1826,9 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
 
         JButton button = new JButton("Seleccionar");
 
-        ActionListener actionListener = new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                frame.dispose(); // Cerrar la ventana después de seleccionar una opción
-            }
-        };
+
+        ActionListener actionListener = e -> frame.dispose();
+
         button.addActionListener(actionListener);
 
         JPanel panel = new JPanel();
