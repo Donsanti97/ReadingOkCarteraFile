@@ -289,7 +289,7 @@ public class FunctionsApachePoi {
             IOUtils.setByteArrayMaxOverride(300000000);
 
             FileInputStream fis = new FileInputStream(excelFilePath);
-            Workbook workbook = new XSSFWorkbook(fis);
+            XSSFWorkbook workbook = new XSSFWorkbook(fis);
             runtime();
             waitSeconds(2);
             int numberOfSheets = workbook.getNumberOfSheets();
@@ -661,12 +661,17 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
 
                     datosFiltrados.add(rowData);
 
+                    /*--------------------------------------------------------------------------------------------------------------------*/
+                    String tempFile = getDirectory() + "\\TemporalFile.xlsx";
+                    //Se añade parámetro/ruta "temporalFilePath" para creación de archivo temporal con el filtro realizado
                     if (datosFiltrados.size() % BATCH_SIZE == 0) {
                         // Realiza alguna acción después de procesar un lote
                         // Puedes adaptar esto según tus necesidades
                         System.out.println("Procesando lote de filas: " + datosFiltrados.size());
+                        crearNuevaHojaExcel(tempFile, headers, datosFiltrados);
 
                     }
+                    /*--------------------------------------------------------------------------------------------------------------------*/
                 }
             }
 

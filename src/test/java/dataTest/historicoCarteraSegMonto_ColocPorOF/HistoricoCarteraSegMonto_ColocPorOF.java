@@ -110,6 +110,10 @@ public class HistoricoCarteraSegMonto_ColocPorOF {
             datosFiltrados = obtenerValoresDeEncabezados(okCartera, sheetName, campoFiltrar, valorInicio, valorFin);
             System.out.println("DATOS_FILTRADOS: " + datosFiltrados.size() + " : " + datosFiltrados);
 
+            String tempFile = getDirectory();
+
+            sheetNames = obtenerNombresDeHojas(tempFile);
+
             for (Map<String, String> rowData : datosFiltrados) {
                 System.out.println(rowData);
                 for (String campoDeseado : camposDeseados) {
