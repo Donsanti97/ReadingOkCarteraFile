@@ -86,6 +86,7 @@ public class HistoricoCarteraSegMonto_ColocPorOF {
     public static void test(){
         JOptionPane.showMessageDialog(null, "Seleccione el archivo OkCartera");
         String okCartera = getDocument();
+        String tempFile = getDirectory() + "\\TemporalFile.xlsx";
         IOUtils.setByteArrayMaxOverride(300000000);
 
         List<String> sheetNames = obtenerNombresDeHojas(okCartera);
@@ -107,10 +108,9 @@ public class HistoricoCarteraSegMonto_ColocPorOF {
             String valorFin = "Nuevo"; // Reemplaza con el valor de fin del rango
 
             // Filtrar los datos por el campo y el rango especificados
-            datosFiltrados = obtenerValoresDeEncabezados(okCartera, sheetName, campoFiltrar, valorInicio, valorFin);
+            datosFiltrados = obtenerValoresDeEncabezados(okCartera, sheetName, campoFiltrar, valorInicio, valorFin, tempFile);
             System.out.println("DATOS_FILTRADOS: " + datosFiltrados.size() + " : " + datosFiltrados);
 
-            String tempFile = getDirectory();
 
             sheetNames = obtenerNombresDeHojas(tempFile);
 
@@ -161,7 +161,7 @@ public class HistoricoCarteraSegMonto_ColocPorOF {
                 String valorFin = "Nuevo"; // Reemplaza con el valor de fin del rango
 
                 // Filtrar los datos por el campo y el rango especificados
-                datosFiltrados = obtenerValoresDeEncabezados(okCarteraFile, sheetName, campoFiltrar, valorInicio, valorFin);
+                datosFiltrados = obtenerValoresDeEncabezados(okCarteraFile, sheetName, campoFiltrar, valorInicio, valorFin, tempFile);
 
 
                 // Especifica los campos que deseas obtener

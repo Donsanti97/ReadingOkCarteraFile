@@ -17,7 +17,6 @@ import javax.swing.*;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamConstants;
 import javax.xml.stream.XMLStreamReader;
-import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.*;
 import java.text.DecimalFormat;
@@ -285,66 +284,27 @@ public class FunctionsApachePoi {
     //Método para obtener los nombres de las hojas existentes en el excel
     public static List<String> obtenerNombresDeHojas(String excelFilePath) {
         List<String> sheetNames = new ArrayList<>();
-        try {
+        try (OPCPackage pkg = OPCPackage.open(new File(excelFilePath))){
+
             IOUtils.setByteArrayMaxOverride(300000000);
 
-            FileInputStream fis = new FileInputStream(excelFilePath);
-            XSSFWorkbook workbook = new XSSFWorkbook(fis);
+            //FileInputStream fis = new FileInputStream(excelFilePath);
+            XSSFWorkbook workbook = new XSSFWorkbook(pkg);
             runtime();
             waitSeconds(2);
             int numberOfSheets = workbook.getNumberOfSheets();
             for (int i = 0; i < numberOfSheets; i++) {
-                Sheet sheet = workbook.getSheetAt(i);
+                XSSFSheet sheet = workbook.getSheetAt(i);
                 sheetNames.add(sheet.getSheetName());
             }
             workbook.close();
-            fis.close();
-        } catch (IOException e) {
+            //fis.close();
+        } catch (IOException | InvalidFormatException e) {
             logger.error("Error al procesar el archivo Excel", e);
+            System.err.println("Error al procesar el archivo Excel: " + e);
         }
         return sheetNames;
     }
-
-    /*public static List<String> obtenerNombresDeHojas(String excelFilePath) {
-        List<String> sheetNames = new ArrayList<>();
-
-        try {
-            FileInputStream fis = new FileInputStream(excelFilePath);
-
-            // Crear un objeto Workbook a partir del archivo Excel
-            Workbook workbook = new XSSFWorkbook(fis);
-
-            // Obtener el InputStream del archivo XLSX
-            XmlObject xmlObject = XmlObject.Factory.parse(((XSSFWorkbook) workbook).getPackagePart().getInputStream(), new XmlOptions());
-
-            // Crear un XMLStreamReader para leer el contenido XML
-            XMLInputFactory factory = XMLInputFactory.newInstance();
-            XMLStreamReader reader = factory.createXMLStreamReader(xmlObject.newInputStream());
-
-            // Iterar a través del contenido XML
-            while (reader.hasNext()) {
-                int event = reader.next();
-                switch (event) {
-                    case XMLStreamConstants.START_ELEMENT:
-                        // Verificar si es un elemento de hoja y obtener el nombre de la hoja
-                        if ("sheet".equals(reader.getLocalName())) {
-                            String sheetName = reader.getAttributeValue(null, "name");
-                            sheetNames.add(sheetName);
-                        }
-                        break;
-                }
-            }
-
-            // Cerrar recursos
-            reader.close();
-            workbook.close();
-            fis.close();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        return sheetNames;
-    }*/
 
 /*------------------------------------------------------------------------------------------------------------------------------------------*/
 public static List<String> obtenerEncabezados(String excelFilePath, String sheetName) {
@@ -364,21 +324,13 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
         // Iterar a través del contenido XML
         while (reader.hasNext()) {
             int event = reader.next();
+            // Verificar si es un elemento de hoja y obtener el nombre de la hoja
             if (event == XMLStreamConstants.START_ELEMENT){
                 if ("sheetData".equals(reader.getLocalName())) {
                     headers = readHeaderRow(reader);
                     break;
                 }
             }
-            /*switch (event) {
-                case XMLStreamConstants.START_ELEMENT:
-                    // Verificar si es un elemento de hoja y obtener el nombre de la hoja
-                    if ("sheetData".equals(reader.getLocalName())) {
-                        headers = readHeaderRow(reader);
-                        break;
-                    }
-                    break;
-            }*/
         }
 
         // Cerrar recursos
@@ -620,7 +572,7 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
 
     /*-------------------------------------------------------------------------------------------------*/
 
-    public static List<Map<String, String>> obtenerValoresDeEncabezados(String excelFilePath, String sheetName, String campoFiltrar, String valorInicio, String valorFin) {
+    public static List<Map<String, String>> obtenerValoresDeEncabezados(String excelFilePath, String sheetName, String campoFiltrar, String valorInicio, String valorFin, String tempFile) {
         List<Map<String, String>> datosFiltrados = new ArrayList<>();
 
         try (OPCPackage pkg = OPCPackage.open(new File(excelFilePath));
@@ -662,15 +614,21 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
                     datosFiltrados.add(rowData);
 
                     /*--------------------------------------------------------------------------------------------------------------------*/
-                    String tempFile = getDirectory() + "\\TemporalFile.xlsx";
+
                     //Se añade parámetro/ruta "temporalFilePath" para creación de archivo temporal con el filtro realizado
-                    if (datosFiltrados.size() % BATCH_SIZE == 0) {
+                    /*if (datosFiltrados.size() % BATCH_SIZE == 0) {
                         // Realiza alguna acción después de procesar un lote
                         // Puedes adaptar esto según tus necesidades
                         System.out.println("Procesando lote de filas: " + datosFiltrados.size());
-                        crearNuevaHojaExcel(tempFile, headers, datosFiltrados);
+                        procesarLote(datosFiltrados, headers);
 
-                    }
+
+                    }*/
+                    List<String> datosDeseados = Arrays.asList("codigo_sucursal", "capital");
+                    Map<String, String> datosProcesados = procesarLote(datosFiltrados, datosDeseados, tempFile);
+
+
+                    datosFiltrados.add(datosProcesados);
                     /*--------------------------------------------------------------------------------------------------------------------*/
                 }
             }
@@ -680,6 +638,34 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
         }
 
         return datosFiltrados;
+    }
+
+    private static Map<String, String> procesarLote(List<Map<String, String>> datosFiltrados, List<String> headers, String tempFile) {
+        Map<String, String> resultado;
+        try {
+            crearNuevaHojaExcel(tempFile, headers, datosFiltrados);
+            /*Map<String, String> */resultado = functions.calcularSumaPorValoresUnicos(tempFile, headers.get(0), headers.get(1));
+            if (datosFiltrados.size() % BATCH_SIZE == 0) {
+                System.out.println("Procesando lote de filas: " + datosFiltrados.size());
+                for (String header : headers) {
+                    System.out.println("HEADER: " + header);
+                    String dato = "";
+                    for (Map<String, String> rowData : datosFiltrados) {
+                        for (int i = 0; i < datosFiltrados.size(); i++) {
+                            dato = rowData.get(header);
+                            System.out.println(header + ": " + dato);
+
+                        }
+                        resultado.put(header, dato);
+                    }
+                }
+                System.gc();
+                waitSeconds(3);
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        return resultado;
     }
 
     private static List<String> obtenerEncabezados(Workbook workbook, String sheetName) {
