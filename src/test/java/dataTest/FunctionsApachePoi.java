@@ -572,7 +572,7 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
 
     /*-------------------------------------------------------------------------------------------------*/
 
-    public static List<Map<String, String>> obtenerValoresDeEncabezados(String excelFilePath, String sheetName, String campoFiltrar, String valorInicio, String valorFin, String tempFile) {
+    public static List<Map<String, String>> obtenerValoresDeEncabezados(String excelFilePath, String sheetName, String campoFiltrar, String valorInicio, String valorFin, List<String> datosDeseados, String tempFile) {
         List<Map<String, String>> datosFiltrados = new ArrayList<>();
 
         try (OPCPackage pkg = OPCPackage.open(new File(excelFilePath));
@@ -580,7 +580,7 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
 
             XSSFSheet sheet = workbook.getSheet(sheetName);
 
-            List<String> headers = obtenerEncabezados(workbook, sheetName);
+            List<String> headers = obtenerEncabezados(excelFilePath, sheetName/*workbook, sheetName*/);
             int campoFiltrarIndex = headers.indexOf(campoFiltrar);
 
             if (campoFiltrarIndex == -1) {
@@ -624,7 +624,6 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
 
 
                     }*/
-                    List<String> datosDeseados = Arrays.asList("codigo_sucursal", "capital");
                     Map<String, String> datosProcesados = procesarLote(datosFiltrados, datosDeseados, tempFile);
 
 
@@ -654,7 +653,6 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
                         for (int i = 0; i < datosFiltrados.size(); i++) {
                             dato = rowData.get(header);
                             System.out.println(header + ": " + dato);
-
                         }
                         resultado.put(header, dato);
                     }
