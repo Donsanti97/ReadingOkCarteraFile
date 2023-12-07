@@ -411,11 +411,12 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
                     String header = headers.get(cellIndex);
                     String value = "";
                     if (cell != null) {
-                        if (cell.getCellType() == CellType.STRING) {
+                        /*if (cell.getCellType() == CellType.STRING) {
                             value = cell.getStringCellValue();
                         } else if (cell.getCellType() == CellType.NUMERIC) {
                             value = String.valueOf(cell.getNumericCellValue());
-                        }
+                        }*/
+                        value = obtenerValorVisibleCelda(cell);
                     }
                     if (camposDeseados.contains(header)) {
                         rowData.put(header, value);
