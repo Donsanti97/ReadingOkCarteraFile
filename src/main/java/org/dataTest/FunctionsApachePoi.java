@@ -44,7 +44,7 @@ public class FunctionsApachePoi {
         List<String> headers = obtenerEncabezados(excelFilePath, sheetName);
         try {
             FileInputStream fis = new FileInputStream(excelFilePath);
-            Workbook workbook = new XSSFWorkbook(fis);
+            Workbook workbook = WorkbookFactory.create(new File(excelFilePath));;
             Sheet sheet = workbook.getSheet(sheetName);
             int numberOfRows = sheet.getPhysicalNumberOfRows();
             for (int rowIndex = 1; rowIndex < numberOfRows; rowIndex++) {
@@ -71,7 +71,7 @@ public class FunctionsApachePoi {
 
     public static void convertirExcel(String archivo) throws IOException {
         FileInputStream fis = new FileInputStream(archivo);
-        Workbook workbook = new XSSFWorkbook(fis);
+        Workbook workbook = WorkbookFactory.create(new File(archivo));;
 
         for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
             Sheet sheet = workbook.getSheetAt(i);
@@ -200,7 +200,7 @@ public class FunctionsApachePoi {
 
     public static Map<String, Integer> extractPivotTableData(String filePath, String filterColumnName, String valueColumnName) throws IOException {
         FileInputStream fis = new FileInputStream(filePath);
-        Workbook workbook = new XSSFWorkbook(fis);
+        Workbook workbook = WorkbookFactory.create(new File(filePath));;
         Sheet sheet = workbook.getSheetAt(0);
         System.out.println("Hoja: " + sheet.getSheetName());
         List<XSSFTable> tables = ((XSSFSheet) sheet).getTables();
@@ -232,7 +232,7 @@ public class FunctionsApachePoi {
 
     public static Map<String, Integer> processExcelFile(String filePath) throws IOException {
         FileInputStream fis = new FileInputStream(filePath);
-        Workbook workbook = new XSSFWorkbook(fis);
+        Workbook workbook = WorkbookFactory.create(new File(filePath));;
         Sheet sheet = workbook.getSheetAt(0); // Suponiendo que estás trabajando en la primera hoja del archivo
 
         Map<String, Integer> resultMap = new HashMap<>();
@@ -270,19 +270,17 @@ public class FunctionsApachePoi {
     //Método para obtener los nombres de las hojas existentes en el excel
     public static List<String> obtenerNombresDeHojas(String excelFilePath) {
         List<String> sheetNames = new ArrayList<>();
-        try (OPCPackage pkg = OPCPackage.open(new File(excelFilePath))){
+        try {
 
             IOUtils.setByteArrayMaxOverride(300000000);
 
-            //FileInputStream fis = new FileInputStream(excelFilePath);
-            XSSFWorkbook workbook = new XSSFWorkbook(pkg);
+            XSSFWorkbook workbook = new XSSFWorkbook(new File(excelFilePath));
             runtime();
             waitSeconds(2);
-            int numberOfSheets = workbook.getNumberOfSheets();
-            for (int i = 0; i < numberOfSheets; i++) {
-                XSSFSheet sheet = workbook.getSheetAt(i);
-                sheetNames.add(sheet.getSheetName());
-            }
+
+            XSSFSheet sheet = workbook.getSheetAt(0);
+            sheetNames.add(sheet.getSheetName());
+
             workbook.close();
             //fis.close();
         } catch (IOException | InvalidFormatException e) {
@@ -292,13 +290,30 @@ public class FunctionsApachePoi {
         return sheetNames;
     }
 
+
+    public static void convertExcelToCsv(String excelFilePath, String csvFilePath) throws IOException {
+        try (FileInputStream fis = new FileInputStream(excelFilePath);
+             Workbook workbook = WorkbookFactory.create(new File(excelFilePath));
+             BufferedWriter writer = new BufferedWriter(new FileWriter(csvFilePath))) {
+
+            Sheet sheet = workbook.getSheetAt(0);
+
+            for (Row row : sheet) {
+                for (Cell cell : row) {
+                    writer.write(obtenerValorVisibleCelda(cell));
+                    writer.write(",");
+                }
+                writer.newLine();
+            }
+        }
+    }
 /*------------------------------------------------------------------------------------------------------------------------------------------*/
-public static List<String> obtenerEncabezados(String excelFilePath, String sheetName) {
+/*public static List<String> obtenerEncabezados(String excelFilePath, String sheetName) {
     List<String> headers = new ArrayList<>();
 
-    try (OPCPackage pkg = OPCPackage.open(new File(excelFilePath))){
+    try {
         //FileInputStream fis = new FileInputStream(excelFilePath);
-        XSSFWorkbook workbook = new XSSFWorkbook(pkg);
+        Workbook workbook = new XSSFWorkbook(new File(excelFilePath));
 
         // Obtener el contenido del archivo XLSX como un XmlObject
         XmlObject xmlObject = XmlObject.Factory.parse(workbook.getPackagePart().getInputStream(), new XmlOptions());
@@ -366,33 +381,34 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
             }
         }
         return value;
-    }
+    }*/
     /*---------------------------------------------------------------------------------------------------------------------------------------*/
     //Método para obtener los encabezados en las hojas
-    /*public static List<String> obtenerEncabezados(String excelFilePath, String sheetName) {
+    public static List<String> obtenerEncabezados(String excelFilePath, String sheetName) {
         List<String> headers = new ArrayList<>();
         try {
             IOUtils.setByteArrayMaxOverride(300000000);
-            FileInputStream fis = new FileInputStream(excelFilePath);
-            Workbook workbook = new XSSFWorkbook(fis);
+            //FileInputStream fis = new FileInputStream(excelFilePath);
+            Workbook workbook = WorkbookFactory.create(new File(excelFilePath));
             Sheet sheet = workbook.getSheet(sheetName);
             Row headerRow = sheet.getRow(0);
             String value = "";
             for (Cell cell : headerRow) {
-                if (cell.getCellType() == CellType.STRING) {
+                /*if (cell.getCellType() == CellType.STRING) {
                     value = cell.getStringCellValue();
                 } else if (cell.getCellType() == CellType.NUMERIC) {
                     value = String.valueOf(cell.getNumericCellValue());
-                }
+                }*/
+                value = obtenerValorVisibleCelda(cell);
                 headers.add(value);
             }
             workbook.close();
-            fis.close();
+            //fis.close();
         } catch (IOException e) {
             logger.error("Error al procesar el archivo Excel", e);
         }
         return headers;
-    }*/
+    }
 
     //Método para obtener los valores de encabezados específicos
     public static List<Map<String, String>> obtenerValoresDeEncabezados(String excelFilePath, String sheetName, List<String> camposDeseados) {
@@ -400,7 +416,7 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
         List<String> headers = obtenerEncabezados(excelFilePath, sheetName);
         try {
             FileInputStream fis = new FileInputStream(excelFilePath);
-            Workbook workbook = new XSSFWorkbook(fis);
+            Workbook workbook = WorkbookFactory.create(new File(excelFilePath));;
             Sheet sheet = workbook.getSheet(sheetName);
             int numberOfRows = sheet.getPhysicalNumberOfRows();
             for (int rowIndex = 1; rowIndex < numberOfRows; rowIndex++) {
@@ -439,7 +455,7 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
         List<String> headers = obtenerEncabezados(excelFilePath, sheetName);
         try {
             FileInputStream fis = new FileInputStream(excelFilePath);
-            Workbook workbook = new XSSFWorkbook(fis);
+            Workbook workbook = WorkbookFactory.create(new File(excelFilePath));;
             Sheet sheet = workbook.getSheet(sheetName);
             int numberOfRows = sheet.getPhysicalNumberOfRows();
             for (int rowIndex = 1; rowIndex < numberOfRows; rowIndex++) {
@@ -478,7 +494,7 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
             convertirExcel(excelFilePath);
 
             FileInputStream fis = new FileInputStream(excelFilePath);
-            Workbook workbook = new XSSFWorkbook(fis);
+            Workbook workbook = WorkbookFactory.create(new File(excelFilePath));;
             Sheet sheet = workbook.getSheet(sheetName);
             int numberOfRows = sheet.getPhysicalNumberOfRows();
             for (int rowIndex = 1; rowIndex < numberOfRows; rowIndex++) {
@@ -517,7 +533,7 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
         List<Map<String, String>> datosFiltrados = new ArrayList<>();
         try {
             FileInputStream fis = new FileInputStream(excelFilePath);
-            Workbook workbook = new XSSFWorkbook(fis);
+            Workbook workbook = WorkbookFactory.create(new File(excelFilePath));;
             Sheet sheet = workbook.getSheet(sheetName);
             List<String> headers = obtenerEncabezados(excelFilePath, sheetName);
             int campoFiltrarIndex = headers.indexOf(campoFiltrar);
@@ -538,11 +554,7 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
                         String header = headers.get(cellIndex);
                         String value = "";
                         if (dataCell != null) {
-                            if (dataCell.getCellType() == CellType.STRING) {
-                                value = dataCell.getStringCellValue();
-                            } else if (dataCell.getCellType() == CellType.NUMERIC) {
-                                value = String.valueOf(dataCell.getNumericCellValue());
-                            }
+                            value = obtenerValorVisibleCelda(dataCell);
                         }
                         rowData.put(header, value);
                     }
@@ -559,15 +571,15 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
 
     /*-------------------------------------------------------------------------------------------------*/
 
-    public static List<Map<String, String>> obtenerValoresDeEncabezados(String excelFilePath, String sheetName, String campoFiltrar, String valorInicio, String valorFin, List<String> datosDeseados, String tempFile) {
+   /* public static List<Map<String, String>> obtenerValoresDeEncabezados(String excelFilePath, String sheetName, String campoFiltrar, String valorInicio, String valorFin, List<String> datosDeseados, String tempFile) {
         List<Map<String, String>> datosFiltrados = new ArrayList<>();
 
-        try (OPCPackage pkg = OPCPackage.open(new File(excelFilePath));
-             XSSFWorkbook workbook = new XSSFWorkbook(pkg)) {
+        try {
+             Workbook workbook = WorkbookFactory.create(new File(excelFilePath));
 
-            XSSFSheet sheet = workbook.getSheet(sheetName);
+            Sheet sheet = workbook.getSheet(sheetName);
 
-            List<String> headers = obtenerEncabezados(excelFilePath, sheetName/*workbook, sheetName*/);
+            List<String> headers = obtenerEncabezados(excelFilePath, sheetName*//*workbook, sheetName*//*);
             int campoFiltrarIndex = headers.indexOf(campoFiltrar);
 
             if (campoFiltrarIndex == -1) {
@@ -581,7 +593,7 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
                 Row row = sheet.getRow(rowIndex);
                 Cell cell = row.getCell(campoFiltrarIndex);
 
-                String valorCelda = (cell != null && cell.getCellType() == CellType.STRING) ? obtenerValorVisibleCelda(cell)/*cell.getStringCellValue()*/ : "";
+                String valorCelda = (cell != null && cell.getCellType() == CellType.STRING) ? obtenerValorVisibleCelda(cell)*//*cell.getStringCellValue()*//* : "";
 
                 if (valorCelda.compareTo(valorInicio) >= 0 && valorCelda.compareTo(valorFin) <= 0) {
                     Map<String, String> rowData = new HashMap<>();
@@ -600,31 +612,21 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
 
                     datosFiltrados.add(rowData);
 
-                    /*--------------------------------------------------------------------------------------------------------------------*/
-
-                    //Se añade parámetro/ruta "temporalFilePath" para creación de archivo temporal con el filtro realizado
-                    /*if (datosFiltrados.size() % BATCH_SIZE == 0) {
-                        // Realiza alguna acción después de procesar un lote
-                        // Puedes adaptar esto según tus necesidades
-                        System.out.println("Procesando lote de filas: " + datosFiltrados.size());
-                        procesarLote(datosFiltrados, headers);
-
-
-                    }*/
+                    *//*--------------------------------------------------------------------------------------------------------------------*//*
                     Map<String, String> datosProcesados = procesarLote(datosFiltrados, datosDeseados, tempFile);
 
 
                     datosFiltrados.add(datosProcesados);
-                    /*--------------------------------------------------------------------------------------------------------------------*/
+                    *//*--------------------------------------------------------------------------------------------------------------------*//*
                 }
             }
-
-        } catch (IOException | InvalidFormatException e) {
+workbook.close();
+        } catch (IOException e) {
             e.printStackTrace();
         }
 
         return datosFiltrados;
-    }
+    }*/
 
     private static Map<String, String> procesarLote(List<Map<String, String>> datosFiltrados, List<String> headers, String tempFile) {
         Map<String, String> resultado;
@@ -669,11 +671,11 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
     /*--------------------------------------------------------------------------------------------------*/
 
     //Método para obtener valores de los encabezados en un rango especifico de valores
-    /*public static List<Map<String, String>> obtenerValoresDeEncabezados(String excelFilePath, String sheetName, String campoFiltrar, String valorInicio, String valorFin) {
+    public static List<Map<String, String>> obtenerValoresDeEncabezados(String excelFilePath, String sheetName, String campoFiltrar, String valorInicio, String valorFin) {
         List<Map<String, String>> datosFiltrados = new ArrayList<>();
         try {
-            FileInputStream fis = new FileInputStream(excelFilePath);
-            Workbook workbook = new XSSFWorkbook(fis);
+            //FileInputStream fis = new FileInputStream(excelFilePath);
+            Workbook workbook = WorkbookFactory.create(new File(excelFilePath));;
             Sheet sheet = workbook.getSheet(sheetName);
             List<String> headers = obtenerEncabezados(excelFilePath, sheetName);
             int campoFiltrarIndex = headers.indexOf(campoFiltrar);
@@ -694,11 +696,7 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
                         String header = headers.get(cellIndex);
                         String value = "";
                         if (dataCell != null) {
-                            if (dataCell.getCellType() == CellType.STRING) {
-                                value = dataCell.getStringCellValue();
-                            } else if (dataCell.getCellType() == CellType.NUMERIC) {
-                                value = String.valueOf(dataCell.getNumericCellValue());
-                            }
+                            value = obtenerValorVisibleCelda(dataCell);
                         }
                         rowData.put(header, value);
                     }
@@ -706,19 +704,19 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
                 }
             }
             workbook.close();
-            fis.close();
+            //fis.close();
         } catch (IOException e) {
             logger.error("Error al procesar el archivo Excel", e);
         }
         return datosFiltrados;
-    }*/
+    }
 
     //Método para obtener valores de dos encabezados de un rango específico de valores cada uno
     public static List<Map<String, String>> obtenerValoresDeEncabezados(String excelFilePath, String sheetName, String campoFiltrar1, String valorInicio1, String valorFin1, String campoFiltrar2, String valorInicio2, String valorFin2) {
         List<Map<String, String>> datosFiltrados = new ArrayList<>();
         try {
             FileInputStream fis = new FileInputStream(excelFilePath);
-            Workbook workbook = new XSSFWorkbook(fis);
+            Workbook workbook = WorkbookFactory.create(new File(excelFilePath));;
             Sheet sheet = workbook.getSheet(sheetName);
             List<String> headers = obtenerEncabezados(excelFilePath, sheetName);
             int campoFiltrarIndex1 = headers.indexOf(campoFiltrar1);
@@ -771,7 +769,7 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
         List<Map<String, String>> datosFiltrados = new ArrayList<>();
         try {
             FileInputStream fis = new FileInputStream(excelFilePath);
-            Workbook workbook = new XSSFWorkbook(fis);
+            Workbook workbook = WorkbookFactory.create(new File(excelFilePath));;
             Sheet sheet = workbook.getSheet(sheetName);
             List<String> headers = obtenerEncabezados(excelFilePath, sheetName);
             int campoFiltrarIndex1 = headers.indexOf(campoFiltrar1);
@@ -798,11 +796,7 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
                         String header = headers.get(cellIndex);
                         String value = "";
                         if (dataCell != null) {
-                            if (dataCell.getCellType() == CellType.STRING) {
-                                value = dataCell.getStringCellValue();
-                            } else if (dataCell.getCellType() == CellType.NUMERIC) {
-                                value = String.valueOf(dataCell.getNumericCellValue());
-                            }
+                            value = obtenerValorVisibleCelda(dataCell);
                         }
                         rowData.put(header, value);
                     }
@@ -827,7 +821,7 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
             IOUtils.setByteArrayMaxOverride(300000000);
 
             FileInputStream fis = new FileInputStream(excelFilePath);
-            Workbook workbook = new XSSFWorkbook(fis);
+            Workbook workbook = WorkbookFactory.create(new File(excelFilePath));;
             Sheet sheet = workbook.getSheet(sheetName);
             headers = obtenerEncabezados(excelFilePath, sheetName);
             int campoFiltrarIndex1 = headers.indexOf(campoFiltrar1);
@@ -852,11 +846,7 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
                         String header = headers.get(cellIndex);
                         String value = "";
                         if (dataCell != null) {
-                            if (dataCell.getCellType() == CellType.STRING) {
-                                value = dataCell.getStringCellValue();
-                            } else if (dataCell.getCellType() == CellType.NUMERIC) {
-                                value = String.valueOf(dataCell.getNumericCellValue());
-                            }
+                            value = obtenerValorVisibleCelda(dataCell);
                         }
 
                         rowData.put(header, value);
@@ -879,7 +869,7 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
             IOUtils.setByteArrayMaxOverride(300000000);
 
             FileInputStream fis = new FileInputStream(excelFilePath);
-            Workbook workbook = new XSSFWorkbook(fis);
+            Workbook workbook = WorkbookFactory.create(new File(excelFilePath));;
             Sheet sheet = workbook.getSheet(sheetName);
             headers = obtenerEncabezados(excelFilePath, sheetName);
             int campoFiltrarIndex1 = headers.indexOf(campoFiltrar1);
@@ -907,11 +897,7 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
                         String header = headers.get(cellIndex);
                         String value = "";
                         if (dataCell != null) {
-                            if (dataCell.getCellType() == CellType.STRING) {
-                                value = dataCell.getStringCellValue();
-                            } else if (dataCell.getCellType() == CellType.NUMERIC) {
-                                value = String.valueOf(dataCell.getNumericCellValue());
-                            }
+                            value = obtenerValorVisibleCelda(dataCell);
                         }
 
                         rowData.put(header, value);
@@ -933,7 +919,7 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
         List<Map<String, String>> datosFiltrados = new ArrayList<>();
         try {
             FileInputStream fis = new FileInputStream(excelFilePath);
-            Workbook workbook = new XSSFWorkbook(fis);
+            Workbook workbook = WorkbookFactory.create(new File(excelFilePath));;
             Sheet sheet = workbook.getSheet(sheetName);
             List<String> headers = obtenerEncabezados(excelFilePath, sheetName);
             int campoFiltrarIndex1 = headers.indexOf(campoFiltrar1);
@@ -1006,7 +992,7 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
         List<Map<String, String>> datosFiltrados = new ArrayList<>();
         try {
             FileInputStream fis = new FileInputStream(excelFilePath);
-            Workbook workbook = new XSSFWorkbook(fis);
+            Workbook workbook = WorkbookFactory.create(new File(excelFilePath));;
             Sheet sheet = workbook.getSheet(sheetName);
             List<String> headers = obtenerEncabezados(excelFilePath, sheetName);
             int campoFiltrarIndex1 = headers.indexOf(campoFiltrar1);
@@ -1184,7 +1170,7 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
         List<String> sheetNames = new ArrayList<>();
         try {
             FileInputStream fis = new FileInputStream(excelFilePath);
-            Workbook workbook = new XSSFWorkbook(fis);
+            Workbook workbook = WorkbookFactory.create(new File(excelFilePath));;
             int numberOfSheets = workbook.getNumberOfSheets();
             for (int i = indexFrom; i < numberOfSheets; i++) {
                 Sheet sheet = workbook.getSheetAt(i);
@@ -1364,7 +1350,7 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
         List<Map<String, String>> data = new ArrayList<>();
 
         try (FileInputStream fis = new FileInputStream(filePath);
-             Workbook workbook = new XSSFWorkbook(fis)) {
+             Workbook workbook = WorkbookFactory.create(new File(filePath))) {
 
             Sheet sheet = workbook.getSheetAt(0); // Supongamos que es la primera hoja
 
@@ -1618,7 +1604,7 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
         List<String> headers = new ArrayList<>();
         try {
             FileInputStream fis = new FileInputStream(excelFilePath);
-            Workbook workbook = new XSSFWorkbook(fis);
+            Workbook workbook = WorkbookFactory.create(new File(excelFilePath));;
             Sheet sheet = workbook.getSheet(sheetName);
             Row headerRow = sheet.getRow(168);
             for (Cell cell : headerRow) {
@@ -1649,9 +1635,9 @@ public static List<String> obtenerEncabezados(String excelFilePath, String sheet
 
 
             FileInputStream fis = new FileInputStream(file1);
-            Workbook workbook = new XSSFWorkbook(fis);
+            Workbook workbook = WorkbookFactory.create(new File(file1));
             FileInputStream fis2 = new FileInputStream(file2);
-            Workbook workbook2 = new XSSFWorkbook(fis2);
+            Workbook workbook2 = WorkbookFactory.create(new File(file2));
             Sheet sheet1 = workbook.getSheetAt(0);
             
             runtime();

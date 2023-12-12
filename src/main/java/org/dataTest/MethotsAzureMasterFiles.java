@@ -340,7 +340,12 @@ public class MethotsAzureMasterFiles {
                                 valor = dataFormatter.formatRawCellContents(cell.getNumericCellValue(), cell.getCellStyle().getDataFormat(), cell.getCellStyle().getDataFormatString());
 
                             }else {
-                                valor = String.format("%.2f%%", numericValue * 100);
+                                boolean isTwoDigitsOrLess = Math.abs(numericValue) < 100 && Math.abs(numericValue) % 1 !=0;
+                                if (isTwoDigitsOrLess) {
+                                    valor = String.format("%.2f%%", numericValue/* / 100*/);
+                                }else {
+                                    valor = String.valueOf(numericValue);
+                                }
                             }
                         }else {
                             valor = dataFormatter.formatRawCellContents(cell.getNumericCellValue(), cell.getCellStyle().getDataFormat(), cell.getCellStyle().getDataFormatString());
@@ -353,11 +358,8 @@ public class MethotsAzureMasterFiles {
                 case BLANK:
                 case _NONE:
                 case ERROR:
-                    valor = "0.00";
-                    break;
-
                 default:
-                    valor = dataFormatter.formatCellValue(cell);
+                    valor = /*dataFormatter.formatCellValue(cell)*/"0";
             }
 
             return valor;
