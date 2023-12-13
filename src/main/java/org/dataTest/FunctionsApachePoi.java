@@ -1092,6 +1092,40 @@ workbook.close();
         }
     }
 
+    public static void crearNuevaHojaExcel(List<String> headers, List<Map<String, Object>> data, String filePath) {
+        Workbook workbook = new XSSFWorkbook();
+        Sheet sheet = workbook.createSheet("NuevaHoja");
+
+        // Crear la fila de encabezados en la nueva hoja
+        Row headerRow = sheet.createRow(0);
+        for (int i = 0; i < headers.size(); i++) {
+            Cell cell = headerRow.createCell(i);
+            cell.setCellValue(headers.get(i));
+        }
+
+        // Llenar la nueva hoja con los datos filtrados
+        for (int i = 0; i < data.size(); i++) {
+            Map<String, Object> rowData = data.get(i);
+            Row row = sheet.createRow(i + 1);
+            for (int j = 0; j < headers.size(); j++) {
+                String header = headers.get(j);
+                String value = (String) rowData.get(header);
+                Cell cell = row.createCell(j);
+                cell.setCellValue(value);
+            }
+        }
+
+
+        try (FileOutputStream fos = new FileOutputStream(filePath)) {
+            workbook.write(fos);
+            System.out.println("Nueva hoja Excel creada o reemplazada en: " + filePath);
+            fos.close();
+            workbook.close();
+        } catch (IOException e) {
+            logger.error("Error al procesar el archivo Excel", e);
+        }
+    }
+
     public static void crearNuevaHojaExcel(String filePath, List<String> headers) {
         Workbook workbook = new XSSFWorkbook();
         Sheet sheet = workbook.createSheet("NuevaHoja");
@@ -1349,8 +1383,7 @@ workbook.close();
     public static List<Map<String, String>> leerExcel(String filePath) throws IOException {
         List<Map<String, String>> data = new ArrayList<>();
 
-        try (FileInputStream fis = new FileInputStream(filePath);
-             Workbook workbook = WorkbookFactory.create(new File(filePath))) {
+        try (Workbook workbook = WorkbookFactory.create(new File(filePath))) {
 
             Sheet sheet = workbook.getSheetAt(0); // Supongamos que es la primera hoja
 
@@ -1634,9 +1667,9 @@ workbook.close();
             waitSeconds(2);
 
 
-            FileInputStream fis = new FileInputStream(file1);
+            assert file1 != null;
             Workbook workbook = WorkbookFactory.create(new File(file1));
-            FileInputStream fis2 = new FileInputStream(file2);
+            assert file2 != null;
             Workbook workbook2 = WorkbookFactory.create(new File(file2));
             Sheet sheet1 = workbook.getSheetAt(0);
             
@@ -1749,8 +1782,6 @@ workbook.close();
             System.out.println("Análisis completado...");
             workbook.close();
             workbook2.close();
-            fis.close();
-            fis2.close();
             runtime();
             waitSeconds(2);
 
