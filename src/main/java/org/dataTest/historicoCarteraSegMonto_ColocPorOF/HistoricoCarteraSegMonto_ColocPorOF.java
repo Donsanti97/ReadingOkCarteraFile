@@ -26,7 +26,7 @@ import static org.dataTest.MethotsAzureMasterFiles.*;
 public class HistoricoCarteraSegMonto_ColocPorOF {
     //110 hojas
 
-    private static String menu(List<String> opciones) {
+    public static String menu(List<String> opciones) {
 
         JFrame frame = new JFrame("Menú de Opciones");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -231,9 +231,11 @@ public class HistoricoCarteraSegMonto_ColocPorOF {
 
             sheet = workbook.getSheetAt(0);
 
-            headers = getHeaders(sheet);
+            System.out.println("SHEET_NAME TEMP_FILE: " + sheet.getSheetName());
 
-            values = getHeaderValuesN(sheet, headers);
+            //headers = getHeaders(sheet);
+
+            //values = getHeaderValuesN(sheet, headers);
 
             Map<String, String> resultado = functions.calcularSumaPorValoresUnicos(tempFile, requiredFields.get(0), requiredFields.get(1));
 
@@ -258,472 +260,39 @@ public class HistoricoCarteraSegMonto_ColocPorOF {
 
     }
 
+    public static void testWithNewMasterFile(){
+        JOptionPane.showMessageDialog(null, "Seleccione el archivo Azure");
+        String azureFile = getDocument();
+        JOptionPane.showMessageDialog(null, "Seleccione el archivo Master");
+        String masterFile = getDocument();
+        JOptionPane.showMessageDialog(null, "ingrese a continuación en la consola la fecha de corte del archivo OkCartera sin espacios (Ejemplo: 30/02/2023)");
+        String fechaCorte = mostrarCuadroDeTexto();
+
+        try {
+            List<Map<String, String>> datosMasterFile = obtenerValoresEncabezados2(azureFile, masterFile, "Nuevos_Oficinas", fechaCorte);
+
+            int count = 0;
+            int rowsPerBatch = 5000;
+
+            for (Map<String, String> data : datosMasterFile){
+                for (Map.Entry<String, String> entry : data.entrySet()){
+                    System.out.println("KEY: " + entry.getKey() + ", VALUE: " + entry.getKey());
+                }
+                count++;
+            }
+
+            if (count % rowsPerBatch == 0) {
+                runtime();
+                Thread.sleep(200);
+            }
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+
+
+    }
+
     /*---------------------------------------------------------------------------------------------------------------------------------------*/
-    private static  List<String> getHeadersN(Sheet sheet){
-        List<String> columnNames = new ArrayList<>();
-        Row row = sheet.getRow(0);
-        try {
-            System.out.println("PROCESANDO CAMPOS...");
-            for (Iterator<Cell> it = row.cellIterator(); it.hasNext(); ) {
-                Cell cell = it.next();
-                columnNames.add(obtenerValorVisibleCelda(cell));
-                //System.out.println(obtenerValorVisibleCelda(cell));
-            }
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-
-        return columnNames;
-    }
-
-    /*private static Map<String, Object> getHeaderValuesN(Sheet sheet, List<String> headers){
-        Map<String, Object> rowData = new HashMap<>();
-
-        Row row = sheet.getRow(0);
-
-        Iterator<Row> rowIterator = sheet.iterator();
-
-        try {
-            while (rowIterator.hasNext()) {
-
-                row = rowIterator.next();
-                if (row.getRowNum() == 0) {
-                    continue;
-                }
-                Iterator<String> columnNameIterator = headers.iterator();
-                Iterator<Cell> cellIterator = row.cellIterator();
-
-                while (cellIterator.hasNext()) {
-                    Cell cell = cellIterator.next();
-                    String columnName = columnNameIterator.next();
-                    String value = "";
-                    if (cell != null) {
-                        //System.out.println("The cell contains a numeric value." + cell.getCellType());
-                        value = obtenerValorVisibleCelda(cell);
-                        System.out.println("VALUE: " + value + ", " + cell.getRowIndex());
-                        rowData.put(columnName, value);
-                    }
-                    runtime();
-                    Thread.sleep(200);
-                    //waitSeconds(2);
-                }
-            }
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
-
-
-        return rowData;
-    }*/
-
-    private static List<Map<String, Object>> getHeaderValuesN(Sheet sheet, List<String> headers) {
-        List<Map<String, Object>> dataList = new ArrayList<>();
-
-        Row row;
-        Iterator<Row> rowIterator = sheet.iterator();
-
-        try {
-            while (rowIterator.hasNext()) {
-                row = rowIterator.next();
-                if (row.getRowNum() == 0) {
-                    continue;
-                }
-
-                Iterator<String> columnNameIterator = headers.iterator();
-                Iterator<Cell> cellIterator = row.cellIterator();
-                Map<String, Object> rowData = new HashMap<>();
-
-                while (cellIterator.hasNext()) {
-                    Cell cell = cellIterator.next();
-                    String columnName = columnNameIterator.next();
-                    Object value;
-
-                    if (cell != null) {
-                        // Obtener el valor de la celda
-                        value = obtenerValorVisibleCelda(cell);
-                        rowData.put(columnName, value);
-                    }
-                    runtime();
-                    Thread.sleep(200);
-                }
-
-                dataList.add(rowData);
-            }
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
-
-        return dataList;
-    }
-
-
-    private static List<Map<String, Object>> getHeaderFilterValuesNS(Sheet sheet, List<String> headers, String campoFiltrar, String valorIni, String valorFin){
-        List<Map<String, Object>> datosFiltrados = new ArrayList<>();
-
-        Row row = sheet.getRow(0);
-
-        Iterator<Row> rowIterator = sheet.iterator();
-
-        int totalRows = sheet.getPhysicalNumberOfRows() - 1;
-
-        try {
-            int currentRow = 0;
-            int rowsPerBatch = 5000;
-            System.out.println("PROCESANDO VALORES");
-            while (rowIterator.hasNext()) {
-
-                row = rowIterator.next();
-                if (row.getRowNum() == 0) {
-                    continue;
-                }
-                int campoFiltrarIndex = headers.indexOf(campoFiltrar);
-                if (campoFiltrarIndex == -1) {
-                    System.err.println("El campo especificado para el filtro no existe");
-                    return  datosFiltrados;
-                }
-
-                String valueCampoFiltrar = obtenerValorVisibleCelda(row.getCell(campoFiltrarIndex));
-                Iterator<String> columnNameIterator = headers.iterator();
-                Iterator<Cell> cellIterator = row.cellIterator();
-                if (valueCampoFiltrar.compareTo(valorIni) >= 0 && valueCampoFiltrar.compareTo(valorFin) <= 0) {
-
-                    Map<String, Object> rowData = new HashMap<>();
-
-                    while (cellIterator.hasNext()) {
-                        Cell cell = cellIterator.next();
-                        String columnName = columnNameIterator.next();
-                        String value = "";
-                        if (cell != null) {
-                            value = obtenerValorVisibleCelda(cell);
-                            rowData.put(columnName, value);
-                        }
-
-                    }
-                    datosFiltrados.add(rowData);
-                    currentRow++;
-
-                    if (currentRow % rowsPerBatch == 0){
-                        runtime();
-                        Thread.sleep(200);
-                    }
-
-                    showProgressBarPercent(currentRow, totalRows);
-                    showProgressBarPerQuantity(currentRow, totalRows);
-
-                    Thread.sleep(50);
-                }
-            }
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
-
-        return datosFiltrados;
-    }
-
-    private static List<Map<String, Object>> getHeaderFilterValuesNSS(Sheet sheet, List<String> headers, String campoFiltrar1, String valorIni1, String valorFin1, String campoFiltrar2, String valorIni2, String valorFin2) {
-        List<Map<String, Object>> datosFiltrados = new ArrayList<>();
-
-        Row row = sheet.getRow(0);
-
-        Iterator<Row> rowIterator = sheet.iterator();
-
-        int totalRows = sheet.getPhysicalNumberOfRows() - 1;
-
-        try {
-            int currentRow = 0;
-            int rowsPerBatch = 5000;
-            System.out.println("PROCESANDO VALORES");
-            while (rowIterator.hasNext()) {
-
-                row = rowIterator.next();
-                if (row.getRowNum() == 0) {
-                    continue;
-                }
-
-                int campoFiltrarIndex1 = headers.indexOf(campoFiltrar1);
-                int campoFiltrarIndex2 = headers.indexOf(campoFiltrar2);
-                if (campoFiltrarIndex1 == -1 || campoFiltrarIndex2 == -1) {
-                    System.err.println("Al menos uno de los campos especificados para el filtro no existe");
-                    return datosFiltrados;
-                }
-
-                String valueCampoFiltrar1 = obtenerValorVisibleCelda(row.getCell(campoFiltrarIndex1));
-                String valueCampoFiltrar2 = obtenerValorVisibleCelda(row.getCell(campoFiltrarIndex2));
-
-                if ((valueCampoFiltrar1.compareTo(valorIni1) >= 0 && valueCampoFiltrar1.compareTo(valorFin1) <= 0) &&
-                        (valueCampoFiltrar2.compareTo(valorIni2) >= 0 && valueCampoFiltrar2.compareTo(valorFin2) <= 0)) {
-
-                    Iterator<String> columnNameIterator = headers.iterator();
-                    Iterator<Cell> cellIterator = row.cellIterator();
-
-                    Map<String, Object> rowData = new HashMap<>();
-
-                    while (cellIterator.hasNext()) {
-                        Cell cell = cellIterator.next();
-                        String columnName = columnNameIterator.next();
-                        String value = "";
-                        if (cell != null) {
-                            value = obtenerValorVisibleCelda(cell);
-                            rowData.put(columnName, value);
-                        }
-                    }
-                    datosFiltrados.add(rowData);
-                    currentRow++;
-
-                    if (currentRow % rowsPerBatch == 0){
-                        runtime();
-                        Thread.sleep(200);
-                    }
-
-                    showProgressBarPercent(currentRow, totalRows);
-                    showProgressBarPerQuantity(currentRow, totalRows);
-
-                    Thread.sleep(50);
-                }
-            }
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
-
-        return datosFiltrados;
-    }
-
-    private static List<Map<String, Object>> getHeaderFilterValuesNSN(Sheet sheet, List<String> headers, String campoFiltrar1, String valorIni1, String valorFin1, String campoFiltrar2, double valorIni2, double valorFin2) {
-        List<Map<String, Object>> datosFiltrados = new ArrayList<>();
-
-        Row row = sheet.getRow(0);
-
-        Iterator<Row> rowIterator = sheet.iterator();
-
-        int totalRows = sheet.getPhysicalNumberOfRows() - 1;
-
-        try {
-            int currentRow = 0;
-            int rowsPerBatch = 5000;
-            System.out.println("PROCESANDO VALORES");
-            while (rowIterator.hasNext()) {
-
-                row = rowIterator.next();
-                if (row.getRowNum() == 0) {
-                    continue;
-                }
-
-                int campoFiltrarIndex1 = headers.indexOf(campoFiltrar1);
-                int campoFiltrarIndex2 = headers.indexOf(campoFiltrar2);
-                if (campoFiltrarIndex1 == -1 || campoFiltrarIndex2 == -1) {
-                    System.err.println("Al menos uno de los campos especificados para el filtro no existe");
-                    return datosFiltrados;
-                }
-
-                String valueCampoFiltrar1 = obtenerValorVisibleCelda(row.getCell(campoFiltrarIndex1));
-                double valueCampoFiltrar2 = Double.parseDouble(obtenerValorVisibleCelda(row.getCell(campoFiltrarIndex2)));
-
-                if ((valueCampoFiltrar1.compareTo(valorIni1) >= 0 && valueCampoFiltrar1.compareTo(valorFin1) <= 0) &&
-                        (valueCampoFiltrar2 >= valorIni2 && valueCampoFiltrar2 <= valorFin2)) {
-
-                    Iterator<String> columnNameIterator = headers.iterator();
-                    Iterator<Cell> cellIterator = row.cellIterator();
-
-                    Map<String, Object> rowData = new HashMap<>();
-
-                    while (cellIterator.hasNext()) {
-                        Cell cell = cellIterator.next();
-                        String columnName = columnNameIterator.next();
-                        String value = "";
-                        if (cell != null) {
-                            value = obtenerValorVisibleCelda(cell);
-                            rowData.put(columnName, value);
-                        }
-                    }
-                    datosFiltrados.add(rowData);
-                    currentRow++;
-                    if (currentRow % rowsPerBatch == 0){
-                        runtime();
-                        Thread.sleep(200);
-                    }
-
-                    showProgressBarPercent(currentRow, totalRows);
-                    showProgressBarPerQuantity(currentRow, totalRows);
-
-                    Thread.sleep(50);
-                }
-            }
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
-
-        return datosFiltrados;
-    }
-
-    private static List<Map<String, Object>> getHeaderFilterValuesNNN(Sheet sheet, List<String> headers, String campoFiltrar1, double valorIni1, double valorFin1, String campoFiltrar2, double valorIni2, double valorFin2) {
-        List<Map<String, Object>> datosFiltrados = new ArrayList<>();
-
-        Row row = sheet.getRow(0);
-
-        Iterator<Row> rowIterator = sheet.iterator();
-
-        int totalRows = sheet.getPhysicalNumberOfRows() - 1;
-
-        try {
-            int currentRow = 0;
-            int rowsPerBatch = 5000;
-            System.out.println("PROCESANDO VALORES");
-            while (rowIterator.hasNext()) {
-
-                row = rowIterator.next();
-                if (row.getRowNum() == 0) {
-                    continue;
-                }
-
-                int campoFiltrarIndex1 = headers.indexOf(campoFiltrar1);
-                int campoFiltrarIndex2 = headers.indexOf(campoFiltrar2);
-
-                if (campoFiltrarIndex1 == -1 || campoFiltrarIndex2 == -1) {
-                    System.err.println("El campo especificado para el filtro no existe");
-                    return datosFiltrados;
-                }
-
-                double valueCampoFiltrar1 = Double.parseDouble(obtenerValorVisibleCelda(row.getCell(campoFiltrarIndex1)));
-                double valueCampoFiltrar2 = Double.parseDouble(obtenerValorVisibleCelda(row.getCell(campoFiltrarIndex2)));
-
-                if ((valueCampoFiltrar1 >= valorIni1 && valueCampoFiltrar1 <= valorFin1) &&
-                        (valueCampoFiltrar2 >= valorIni2 && valueCampoFiltrar2 <= valorFin2)) {
-
-                    Iterator<String> columnNameIterator = headers.iterator();
-                    Iterator<Cell> cellIterator = row.cellIterator();
-
-                    Map<String, Object> rowData = new HashMap<>();
-
-                    while (cellIterator.hasNext()) {
-                        Cell cell = cellIterator.next();
-                        String columnName = columnNameIterator.next();
-                        String value = "";
-                        if (cell != null) {
-                            value = obtenerValorVisibleCelda(cell);
-                            rowData.put(columnName, value);
-                        }
-                    }
-                    datosFiltrados.add(rowData);
-                    currentRow++;
-
-                    if (currentRow % rowsPerBatch == 0){
-                        runtime();
-                        Thread.sleep(200);
-                    }
-
-                    showProgressBarPercent(currentRow, totalRows);
-                    showProgressBarPerQuantity(currentRow, totalRows);
-
-                    Thread.sleep(50);
-                }
-            }
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
-
-        return datosFiltrados;
-    }
-
-    private static List<Map<String, Object>> getHeaderFilterValuesNNS(Sheet sheet, List<String> headers, String campoFiltrar1, double valorIni1, double valorFin1, String campoFiltrar2, String valorIni2, String valorFin2) {
-        List<Map<String, Object>> datosFiltrados = new ArrayList<>();
-
-        Row row = sheet.getRow(0);
-
-        Iterator<Row> rowIterator = sheet.iterator();
-
-        int totalRows = sheet.getPhysicalNumberOfRows() - 1;
-
-        try {
-            int currentRow = 0;
-            int rowsPerBatch = 5000;
-            System.out.println("PROCESANDO VALORES");
-            while (rowIterator.hasNext()) {
-
-                row = rowIterator.next();
-                if (row.getRowNum() == 0) {
-                    continue;
-                }
-
-                int campoFiltrarIndex1 = headers.indexOf(campoFiltrar1);
-                int campoFiltrarIndex2 = headers.indexOf(campoFiltrar2);
-
-                if (campoFiltrarIndex1 == -1 || campoFiltrarIndex2 == -1) {
-                    System.err.println("El campo especificado para el filtro no existe");
-                    return datosFiltrados;
-                }
-
-                double valueCampoFiltrar1 = Double.parseDouble(obtenerValorVisibleCelda(row.getCell(campoFiltrarIndex1)));
-                double valueCampoFiltrar2 = Double.parseDouble(obtenerValorVisibleCelda(row.getCell(campoFiltrarIndex2)));
-
-                if ((valueCampoFiltrar1 >= valorIni1 && valueCampoFiltrar1 <= valorFin1) &&
-                        (valueCampoFiltrar2 >= Double.parseDouble(valorIni2) && valueCampoFiltrar2 <= Double.parseDouble(valorFin2))) {
-
-                    Iterator<String> columnNameIterator = headers.iterator();
-                    Iterator<Cell> cellIterator = row.cellIterator();
-
-                    Map<String, Object> rowData = new HashMap<>();
-
-                    while (cellIterator.hasNext()) {
-                        Cell cell = cellIterator.next();
-                        String columnName = columnNameIterator.next();
-                        String value = "";
-                        if (cell != null) {
-                            value = obtenerValorVisibleCelda(cell);
-                            rowData.put(columnName, value);
-                        }
-                    }
-                    datosFiltrados.add(rowData);
-                    currentRow++;
-
-                    if (currentRow % rowsPerBatch == 0){
-                        runtime();
-                        Thread.sleep(200);
-                    }
-
-                    showProgressBarPercent(currentRow, totalRows);
-                    showProgressBarPerQuantity(currentRow, totalRows);
-
-                    Thread.sleep(50);
-                }
-            }
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
-
-        return datosFiltrados;
-    }
-
-    private static void showProgressBarPercent(int current, int total) {
-        int progressBarWidth = 50;
-        int progress = (int) ((double) current / total * 100);
-
-        StringBuilder progressBar = new StringBuilder("[");
-        for (int i = 0; i < progressBarWidth; i++) {
-            if (i < progress * progressBarWidth / 100) {
-                progressBar.append("||");
-            } else {
-                progressBar.append(" ");
-            }
-        }
-        progressBar.append("] " + progress + "%");
-        System.out.print("\r" + progressBar.toString());
-    }
-
-    private static void showProgressBarPerQuantity(int current, int total) {
-        int progressBarWidth = 50;
-        int progress = (int) ((double) current / total * progressBarWidth);
-
-        StringBuilder progressBar = new StringBuilder("[");
-        for (int i = 0; i < progressBarWidth; i++) {
-            if (i < progress) {
-                progressBar.append("||");
-            } else {
-                progressBar.append(" ");
-            }
-        }
-        progressBar.append("] " + current + "/" + total);
-        System.out.print("\r" + progressBar.toString());
-    }
 
 /*---------------------------------------------------------------------------------------------------------------------------------------*/
     public static void nuevosOficinas(String okCarteraFile/*, String masterFile, String azureFile, String fechaCorte, String hoja*/, String tempFile) throws IOException {

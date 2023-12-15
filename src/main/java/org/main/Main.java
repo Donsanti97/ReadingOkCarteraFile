@@ -7,6 +7,8 @@ public class Main {
 
         //test();
         //testWithJson();
-        testWithNew();
+        //testWithNew();
+
+        testWithNewMasterFile();
     }
 }
