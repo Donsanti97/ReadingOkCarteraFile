@@ -11,7 +11,7 @@ import static org.dataTest.MethotsAzureMasterFiles.getDocument;
 
 public class Start {
 
-    public void excecution(){
+    public static void excecution(){
         JOptionPane.showMessageDialog(null, "Seleccione el archivo Maestro");
         String masterFile = getDocument();
 

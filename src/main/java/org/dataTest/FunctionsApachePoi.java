@@ -3,7 +3,6 @@ package org.dataTest;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
-import org.apache.poi.openxml4j.opc.OPCPackage;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.AreaReference;
 import org.apache.poi.ss.util.CellReference;
@@ -12,13 +11,12 @@ import org.apache.poi.xssf.usermodel.XSSFPivotTable;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFTable;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.apache.xmlbeans.XmlObject;
-import org.apache.xmlbeans.XmlOptions;
+
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDPageContentStream;
 
 import javax.swing.*;
-import javax.xml.stream.XMLInputFactory;
-import javax.xml.stream.XMLStreamConstants;
-import javax.xml.stream.XMLStreamReader;
 import java.awt.*;
 import java.awt.Font;
 import java.awt.event.ActionEvent;
@@ -1097,15 +1095,24 @@ workbook.close();
         }
     }
 
-    public static void crearNuevaHojaExcel(List<String> headers, List<Map<String, Object>> data, String filePath) {
+    public static void crearNuevaHojaExcel(List<String> headers, List<Map<String, Object>> data, String filePath) throws InterruptedException {
         Workbook workbook = new XSSFWorkbook();
         Sheet sheet = workbook.createSheet("NuevaHoja");
+
+        int count1 = 0;
+        int count2 = 0;
+        int rowsPerBatch = 5000;
 
         // Crear la fila de encabezados en la nueva hoja
         Row headerRow = sheet.createRow(0);
         for (int i = 0; i < headers.size(); i++) {
             Cell cell = headerRow.createCell(i);
             cell.setCellValue(headers.get(i));
+            count1++;
+        }
+        if (count1 % rowsPerBatch == 0) {
+            runtime();
+            Thread.sleep(200);
         }
 
         // Llenar la nueva hoja con los datos filtrados
@@ -1117,7 +1124,12 @@ workbook.close();
                 String value = (String) rowData.get(header);
                 Cell cell = row.createCell(j);
                 cell.setCellValue(value);
+                count2++;
             }
+        }
+        if (count2 % rowsPerBatch == 0) {
+            runtime();
+            Thread.sleep(200);
         }
 
 
@@ -1424,7 +1436,7 @@ workbook.close();
                     Thread.sleep(200);
                 }
 
-                showProgressBarPercent(countRows, totalRows);
+                showProgressBarPerQuantity(countRows, totalRows);
 
                 data.add(rowMap);
             }
@@ -1523,7 +1535,7 @@ workbook.close();
                 Thread.sleep(200);
             }
 
-            showProgressBarPercent(count2, filasFinales);
+            showProgressBarPerQuantity(count2, filasFinales);
 
 
             return resultadoFormateado;
@@ -1734,15 +1746,13 @@ workbook.close();
     public static List<String> getHeaders(String excelFilePath, String sheetName) {
         List<String> headers = new ArrayList<>();
         try {
-            FileInputStream fis = new FileInputStream(excelFilePath);
             Workbook workbook = WorkbookFactory.create(new File(excelFilePath));;
             Sheet sheet = workbook.getSheet(sheetName);
-            Row headerRow = sheet.getRow(168);
+            Row headerRow = sheet.getRow(0);
             for (Cell cell : headerRow) {
                 headers.add(obtenerValorVisibleCelda(cell));
             }
             workbook.close();
-            fis.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -1751,6 +1761,9 @@ workbook.close();
 
 
     public static List<Map<String, String>> obtenerValoresEncabezados2(String azureFile, String masterFile, String hoja, String fechaCorte) {
+        IOUtils.setByteArrayMaxOverride(300000000);
+        System.setProperty("org.apache.poi.ooxml.strict", "false");
+
         List<Map<String, String>> valoresEncabezados2;
         List<Map<String, String>> valoresEncabezados1;
         List<Map<String, String>> mapList = new ArrayList<>();
@@ -1770,8 +1783,8 @@ workbook.close();
             Workbook workbook = WorkbookFactory.create(new File(azureFile));
             Workbook workbook2 = WorkbookFactory.create(new File(masterFile));
             Sheet sheet1 = null;
-            Sheet sheet2;
-            
+            Sheet sheet2 = null;
+
             int indexF2 = 0;
 
 
@@ -1779,158 +1792,64 @@ workbook.close();
                 sheet1 = workbook.getSheetAt(i);
                 nameSheets1.add(sheet1.getSheetName());
             }
-            for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
+            for (int i = 0; i < workbook2.getNumberOfSheets(); i++) {
                 sheet2 = workbook2.getSheetAt(i);
                 nameSheets2.add(sheet2.getSheetName());
             }
 
+            String sht1 = "";
+            String sht2 = "";
             List<String> dataList = createDualDropDownListsAndReturnSelectedValues(nameSheets1, nameSheets2);
             List<String> encabezados1 = null;
             List<String> encabezados2 = null;
             String encabezado = "";
 
-            for (String seleccion : dataList){
-                String[] elementos = seleccion.split(" - ");
+            for (String seleccion : dataList) {
+                String[] elementos = seleccion.split(SPECIAL_CHAR);
 
-                String sht1 = elementos[0];
-                String sht2 = elementos[1];
+                sht1 = elementos[0];
+                sht2 = elementos[1];
                 System.out.println("ELEMENTOS SELECCIONADOS: " + sht1 + ", " + sht2);
-                sheet1 = workbook.getSheet(sht1);
+
                 sheet2 = workbook2.getSheet(sht2);
-
-                for (String sheets : nameSheets1) {
-                    encabezados1 = getHeaders(azureFile, sheets);
-                }
-
-                JOptionPane.showMessageDialog(null, "Del siguiente menú escoja el primer encabezado ubucado en las hojas del archivo Maestro");
-                assert encabezados1 != null;
-                encabezado = mostrarMenu(encabezados1);
-
-                encabezados2 = getHeadersMasterfile(sheet1, sheet2, encabezado);
-
-
-                //valoresEncabezados1 = obtenerValoresPorFilas(sheet1, encabezados1);
-                valoresEncabezados2 = obtenerValoresPorFilas(sheet2, encabezados2);
-
-
-                JOptionPane.showMessageDialog(null,"Seleccione el encabezado que corresponda al \"Código\" que será analizado");
-                String codigo = mostrarMenu(encabezados2);
-                JOptionPane.showMessageDialog(null,"Seleccione el encabezado que corresponda a la \"Fecha de corte\" que será analizada");
-                String fechaCorteMF = mostrarMenu(encabezados2);
-
-                if (!fechaCorte.equals(fechaCorteMF)){
-                    errorMessage("Por favor verifique que los encabezados correspondientes a las fechas" +
-                            "\n tengan un formato tipo FECHA idéntica a " + fechaCorte);
-
-                    errorMessage( "No es posible completar el análisis de la hoja [" + hoja +
-                            "]\n el formato de fecha no es el correcto");
-                }else {
-                    valoresEncabezados2 = obtenerValoresPorFilas(workbook, workbook2, sht1, sht2, codigo, fechaCorteMF);
-                    mapList = createMapList(valoresEncabezados2, codigo, fechaCorteMF);
-                    for (Map<String, String> map : mapList) {
-                        System.out.println("Analizando valores... ");
-                        for (Map.Entry<String, String> entry : map.entrySet()) {
-                            System.out.println("Headers2: " + entry.getKey() + ", Value: " + entry.getValue());
-                        }
-                    }
-                }
             }
+            sheet1 = workbook.getSheet(sht1);
+            encabezados1 = getHeadersN(sheet1);
 
-            /*for (String s2 : nameSheets2) {
-                String sheetName = s2.replaceAll("\\s", "");
+            JOptionPane.showMessageDialog(null, "Del siguiente menú escoja el primer encabezado ubicado en las hojas del archivo Maestro");
+            assert encabezados1 != null;
+            encabezado = mostrarMenu(encabezados1);
 
-                for (int i = 0; i < workbook2.getNumberOfSheets(); i++) {
-                    if (nameSheets1.get(0).equals(sheetName)) {
-                        indexF2 = i;
-                        System.out.println("La hoja de trabajo se encontró en Excel B en el índice: " + indexF2);
-                        break;
-                    }
-                }
-            }
-            
-            runtime();
-            waitSeconds(2);
-            
-            sheet2 = workbook2.getSheetAt(indexF2);
-            nameSheets2 = getWorkSheet(masterFile, indexF2);
+            encabezados2 = getHeadersMasterfile(sheet1, sheet2, encabezado);
 
-            System.out.println("------------------------------------------------------------------------------------------");
+            JOptionPane.showMessageDialog(null, "Seleccione el encabezado que corresponda al \"Código\" que será analizado");
+            String codigo = mostrarMenu(encabezados2);
+            JOptionPane.showMessageDialog(null, "Seleccione el encabezado que corresponda a la \"Fecha de corte\" que será analizada");
+            String fechaCorteMF = mostrarMenu(encabezados2);
 
 
+            for (String seleccion : dataList) {
+                if (sht2.equals(hoja)) {
+                    if (!fechaCorte.equals(fechaCorteMF)) {
+                        errorMessage("Por favor verifique que los encabezados correspondientes a las fechas" +
+                                "\n tengan un formato tipo FECHA idéntica a " + fechaCorte);
 
-            System.out.println("------------------------------------------------------");
-            System.out.println("Analizando archivo Maestro");
-            for (String sheets2 : nameSheets2) {
-                System.out.println("Analizando: " + sheets2);
-                encabezados2 = getHeadersMasterfile(sheet1, sheet2, encabezado);
-                for (String headers : encabezados2) {
-                    sheets2.toLowerCase();
-                    hoja.toLowerCase();
-                    if (!sheets2.equals(hoja)) {
-                        errorMessage("La hoja [" + hoja + "] no fue encontrada." +
-                                "\n busque una hoja en la siguiente lista que se asemeje al nombre <" + hoja + ">");
-                        hoja = mostrarMenu(nameSheets2);
-                        if (hoja.equals("Ninguno")){
-                            errorMessage("La hoja no fue encontrada. proceso finalizado");
-                        }
-                    }else {
-                        System.out.println("Headers2: " + headers);
-                    }
-                }
-            }
-            
-            runtime();
-            waitSeconds(5);
-            
-            System.out.println("-------------------------------------------------------------------------------------");
-            System.out.println("ANÁLISIS DE DATOS MASTER_FILE");
-
-            JOptionPane.showMessageDialog(null, "Tomando en cuenta la información mostrada anteriormente en consola " +
-                    "\n Seleccione por favor el encabezado \"Código\" que será usado para el análisis de los valores");
-            assert encabezados2 != null;
-            String seleccion = mostrarMenu(encabezados2);
-            JOptionPane.showMessageDialog(null, "Seleccione la fecha de corte o columna correspondiente para análisis de los valores " +
-                    "\n y que concuerde con la fecha de corte que ingresó al comienzo");
-            String seleccion2 = mostrarMenu(encabezados2);
-            for (String sheetName1 : nameSheets1) {
-                for (String sheetName2 : nameSheets2) {
-                    sheetName2.toLowerCase();
-                    hoja.toLowerCase();
-                    if (sheetName2.equals(hoja)) {
-                        System.out.println("ENTRA A " + hoja);
-                        System.out.println("SHEET_NAME2: " + sheetName2);
-                        if (!fechaCorte.equals(seleccion2)){
-                            errorMessage("Por favor verifique que los encabezados correspondientes a las fechas" +
-                                    "\n tengan un formato tipo FECHA idéntica a " + fechaCorte);
-
-                            errorMessage( "No es posible completar el análisis de la hoja [" + hoja +
-                                    "]\n el formato de fecha no es el correcto");
-                        }else {
-                            valoresEncabezados2 = obtenerValoresPorFilas(workbook, workbook2, sheetName1, sheetName2, seleccion, seleccion2);
-                            mapList = createMapList(valoresEncabezados2, seleccion, seleccion2);
-                            for (Map<String, String> map : mapList) {
-                                System.out.println("Analizando valores... ");
-                                for (Map.Entry<String, String> entry : map.entrySet()) {
-                                    System.out.println("Headers2: " + entry.getKey() + ", Value: " + entry.getValue());
-                                }
+                        errorMessage("No es posible completar el análisis de la hoja [" + hoja +
+                                "]\n el formato de fecha no es el correcto");
+                    } else {
+                        valoresEncabezados2 = obtenerValoresPorFilas(workbook, workbook2, sht1, sht2, codigo, fechaCorteMF);
+                        mapList = createMapList(valoresEncabezados2, codigo, fechaCorteMF);
+                        for (Map<String, String> map : mapList) {
+                            System.out.println("Analizando valores... ");
+                            for (Map.Entry<String, String> entry : map.entrySet()) {
+                                System.out.println("Headers2: " + entry.getKey() + ", Value: " + entry.getValue());
                             }
                         }
-                        
-                        runtime();
-                        waitSeconds(2);
-                        System.out.println("HA FINALIZADO EL ANÁLISIS DEL ARCHIVO MAESTRO");
-                    }else {
-                        System.err.println("La hoja [" + hoja + "] no fue encontrada");
                     }
                 }
-                System.gc();
-                waitSeconds(2);
-                break;
-            }*/
-
-
-
+            }
             System.out.println("---------------------------------------------------------------------------------------");
+            System.setProperty("org.apache.poi.ooxml.strict", "true");
 
             System.out.println("Análisis completado...");
             workbook.close();
@@ -1947,6 +1866,7 @@ workbook.close();
     }
 
 
+
     /*-----------------------------------------------------------------------------------------------------------------------------------------*/
     public static  List<String> getHeadersN(Sheet sheet){
         List<String> columnNames = new ArrayList<>();
@@ -1958,6 +1878,28 @@ workbook.close();
                 columnNames.add(obtenerValorVisibleCelda(cell));
                 //System.out.println(obtenerValorVisibleCelda(cell));
             }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+        return columnNames;
+    }
+
+    public static  List<String> getHeadersN(String filePath, String sheetName){
+        List<String> columnNames = new ArrayList<>();
+
+        try /*(Workbook workbook = WorkbookFactory.create(new File(filePath)))*/{
+            System.out.println("AQUI ESTOY");
+            Workbook workbook = WorkbookFactory.create(new File(filePath));
+            Sheet sheet = workbook.getSheet(sheetName);
+            Row row = sheet.getRow(0);
+            System.out.println("PROCESANDO CAMPOS...");
+            for (Iterator<Cell> it = row.cellIterator(); it.hasNext(); ) {
+                Cell cell = it.next();
+                columnNames.add(obtenerValorVisibleCelda(cell));
+                //System.out.println(obtenerValorVisibleCelda(cell));
+            }
+            workbook.close();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -2051,7 +1993,7 @@ workbook.close();
                     Thread.sleep(200);
                 }
 
-                showProgressBarPercent(currentRow, totalRows);
+                showProgressBarPerQuantity(currentRow, totalRows);
 
 
             }
@@ -2113,7 +2055,6 @@ workbook.close();
                         Thread.sleep(200);
                     }
 
-                    showProgressBarPercent(currentRow, totalRows);
                     showProgressBarPerQuantity(currentRow, totalRows);
 
                     Thread.sleep(50);
@@ -2181,7 +2122,7 @@ workbook.close();
                         Thread.sleep(200);
                     }
 
-                    showProgressBarPercent(currentRow, totalRows);
+
                     showProgressBarPerQuantity(currentRow, totalRows);
 
                     Thread.sleep(50);
@@ -2248,7 +2189,7 @@ workbook.close();
                         Thread.sleep(200);
                     }
 
-                    showProgressBarPercent(currentRow, totalRows);
+
                     showProgressBarPerQuantity(currentRow, totalRows);
 
                     Thread.sleep(50);
@@ -2317,7 +2258,7 @@ workbook.close();
                         Thread.sleep(200);
                     }
 
-                    showProgressBarPercent(currentRow, totalRows);
+
                     showProgressBarPerQuantity(currentRow, totalRows);
 
                     Thread.sleep(50);
@@ -2386,7 +2327,6 @@ workbook.close();
                         Thread.sleep(200);
                     }
 
-                    showProgressBarPercent(currentRow, totalRows);
                     showProgressBarPerQuantity(currentRow, totalRows);
 
                     Thread.sleep(50);
@@ -2415,11 +2355,50 @@ workbook.close();
         System.out.print("\r" + progressBar.toString());
     }
 
+    public static void logWinsToFile(String filePath, List<String> messages) {
+        logToPdf(filePath, messages, "messages");
+    }
+
+    public static void logErrorsToFile(String filePath, List<String> errors) {
+        logToPdf(filePath, errors, "errors");
+    }
+
+    private static void logToPdf(String filePath, List<String> messages, String folderName) {
+        // Obtener el nombre del archivo sin la extensión
+        String fileName = new File(filePath).getName();
+        String folderPath = filePath.replace(fileName, folderName);
+
+        // Crear la carpeta si no existe
+        File folder = new File(folderPath);
+        folder.mkdirs();
+
+        // Agregar "-estatus" al nombre del archivo
+        String logFilePath = folderPath + File.separator + fileName.replace(".pdf", "-" + folderName + ".pdf");
+
+        try (PDDocument document = new PDDocument()) {
+            PDPage page = new PDPage();
+            document.addPage(page);
+
+            try (PDPageContentStream contentStream = new PDPageContentStream(document, page)) {
+                for (String message : messages) {
+                    // Escribir cada mensaje en una nueva línea
+                    contentStream.newLineAtOffset(10, 700);
+                    contentStream.showText(message);
+                }
+            }
+
+            document.save(logFilePath);
+            System.out.println("Mensajes registrados en: " + logFilePath);
+        } catch (IOException e) {
+            // Manejar cualquier excepción de IO, por ejemplo, imprimir en la consola
+            e.printStackTrace();
+        }
+    }
     /*-----------------------------------------------------------------------------------------------------------------------------------------*/
-    public static List<String> createDualDropDownListsAndReturnSelectedValues(List<String> list1, List<String> list2) {
+    /*public static List<String> createDualDropDownListsAndReturnSelectedValues(List<String> list1, List<String> list2) {
         List<String> selectedValues = new ArrayList<>();
 
-        JFrame frame = new JFrame("DualDropDownList Example");
+        JFrame frame = new JFrame("SELECCIÓN DE ENCABEZADOS");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setSize(400, 200);
         frame.setLayout(new FlowLayout());
@@ -2452,6 +2431,14 @@ workbook.close();
                     JCheckBox checkBox = new JCheckBox(combinedSelection);
                     selectionsPanel.add(checkBox);
 
+                    // Eliminar elementos seleccionados de los desplegables
+                    list1.remove(selectedValue1);
+                    list2.remove(selectedValue2);
+
+                    // Actualizar los modelos de los desplegables
+                    dropdown1.setModel(new DefaultComboBoxModel<>(list1.toArray(new String[0])));
+                    dropdown2.setModel(new DefaultComboBoxModel<>(list2.toArray(new String[0])));
+
                     System.out.println("Elementos agregados: " + combinedSelection);
 
                     frame.revalidate();
@@ -2476,6 +2463,148 @@ workbook.close();
                         JCheckBox checkBox = (JCheckBox) component;
                         if (checkBox.isSelected()) {
                             selectedValues.remove(checkBox.getText());
+
+                            // Recuperar elementos eliminados a los desplegables
+                            String[] parts = checkBox.getText().split(" - ");
+                            if (!list1.contains(parts[0])) {
+                                list1.add(parts[0]);
+                            }
+                            if (!list2.contains(parts[1])) {
+                                list2.add(parts[1]);
+                            }
+
+                            // Actualizar los modelos de los desplegables
+                            dropdown1.setModel(new DefaultComboBoxModel<>(list1.toArray(new String[0])));
+                            dropdown2.setModel(new DefaultComboBoxModel<>(list2.toArray(new String[0])));
+
+                            selectionsPanel.remove(checkBox);
+                        }
+                    }
+                }
+
+                frame.revalidate();
+                frame.repaint();
+            }
+        });
+
+        // Botón para terminar el proceso de selección
+        JButton finishButton = new JButton("Terminar Selección");
+        frame.add(finishButton);
+
+        finishButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                // Puedes realizar acciones finales aquí, por ejemplo, cerrar la aplicación
+                frame.dispose();
+            }
+        });
+
+        frame.setVisible(true);
+
+        // Esperar hasta que se cierre la ventana
+        while (frame.isVisible()) {
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+
+        //runtime();
+        //waitSeconds(2);
+
+        return selectedValues;
+    }*/
+
+    private static final String SPECIAL_CHAR = " -X- ";
+
+    public static List<String> createDualDropDownListsAndReturnSelectedValues(List<String> list1, List<String> list2) {
+        List<String> selectedValues = new ArrayList<>();
+
+        JFrame frame = new JFrame("SELECCIÓN DE ENCABEZADOS");
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setSize(400, 200);
+        frame.setLayout(new FlowLayout());
+
+        JComboBox<String> dropdown1 = new JComboBox<>(list1.toArray(new String[0]));
+        JComboBox<String> dropdown2 = new JComboBox<>(list2.toArray(new String[0]));
+        JButton addButton = new JButton("Agregar Selecciones");
+
+        frame.add(dropdown1);
+        frame.add(dropdown2);
+        frame.add(addButton);
+
+        // Panel para contener las selecciones y checkboxes
+        JPanel selectionsPanel = new JPanel(new GridLayout(0, 2));
+        JScrollPane scrollPane = new JScrollPane(selectionsPanel);
+        scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
+        frame.add(selectionsPanel);
+        final String[] newChar = {""};
+
+        addButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                String selectedValue1 = (String) dropdown1.getSelectedItem();
+                String selectedValue2 = (String) dropdown2.getSelectedItem();
+
+                newChar[0] = String.valueOf(generateRandomChar());
+
+                if (selectedValue1 != null && selectedValue2 != null) {
+                    String combinedSelection =combinedSelection = selectedValue1 + SPECIAL_CHAR + selectedValue2;
+                    selectedValues.add(combinedSelection);
+
+
+
+                    // Crear checkbox para la selección recién agregada
+                    JCheckBox checkBox = new JCheckBox(combinedSelection);
+                    selectionsPanel.add(checkBox);
+
+                    // Eliminar elementos seleccionados de los desplegables
+                    list1.remove(selectedValue1);
+                    list2.remove(selectedValue2);
+
+                    // Actualizar los modelos de los desplegables
+                    dropdown1.setModel(new DefaultComboBoxModel<>(list1.toArray(new String[0])));
+                    dropdown2.setModel(new DefaultComboBoxModel<>(list2.toArray(new String[0])));
+
+                    System.out.println("Elementos agregados: " + combinedSelection);
+
+                    frame.revalidate();
+                    frame.repaint();
+                } else {
+                    // Puedes mostrar un mensaje de error si ambos elementos no están seleccionados
+                    JOptionPane.showMessageDialog(frame, "Selecciona un elemento de cada lista", "Error", JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        });
+
+        // Botón para eliminar selecciones marcadas
+        JButton removeButton = new JButton("Eliminar Selecciones");
+        frame.add(removeButton);
+
+        removeButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                // Eliminar selecciones marcadas
+                for (Component component : selectionsPanel.getComponents()) {
+                    if (component instanceof JCheckBox) {
+                        JCheckBox checkBox = (JCheckBox) component;
+                        if (checkBox.isSelected()) {
+                            selectedValues.remove(checkBox.getText());
+
+                            // Recuperar elementos eliminados a los desplegables
+                            String[] parts = checkBox.getText().split(SPECIAL_CHAR);
+                            if (!list1.contains(parts[0])) {
+                                list1.add(parts[0]);
+                            }
+                            if (!list2.contains(parts[1])) {
+                                list2.add(parts[1]);
+                            }
+
+                            // Actualizar los modelos de los desplegables
+                            dropdown1.setModel(new DefaultComboBoxModel<>(list1.toArray(new String[0])));
+                            dropdown2.setModel(new DefaultComboBoxModel<>(list2.toArray(new String[0])));
+
                             selectionsPanel.remove(checkBox);
                         }
                     }
@@ -2510,6 +2639,13 @@ workbook.close();
         }
 
         return selectedValues;
+    }
+
+    private static char generateRandomChar() {
+        // Lista de caracteres especiales
+        String specialChars = "!@#$%^&*()-_=+[]{}|;:'\",.<>/?`~";
+        Random random = new Random();
+        return specialChars.charAt(random.nextInt(specialChars.length()));
     }
 
 
